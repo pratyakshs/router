@@ -32,6 +32,7 @@
 // import struct
 
 #include <stdint.h>
+#include <string.h>
 #include "IPAddress.h"
 
 // ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
@@ -57,13 +58,14 @@ class SCIONAddr {
     }
 
     // def from_values(cls, isd_id, ad_id, host_addr):
-    SCIONAddr(uint16_t isd_id, uint64_t ad_id, IPv4Address host_addr) {
-        this.isd_id = isd_id;
-        this.ad_id = ad_id;
-        this.host_addr = host_addr;
-        if (addr.host_addr.version == 4)
+    SCIONAddr(uint16_t isd_id, uint64_t ad_id, IPv4Address * host_addr) {
+        this->isd_id = isd_id;
+        this->ad_id = ad_id;
+        this->host_addr = host_addr;
+        int host_addr_len;
+        if (this->host_addr->version == 4)
             host_addr_len = IPV4LENGTH; // 8
-        else if (addr.host_addr.version == 6)
+        else if (this->host_addr->version == 6)
             host_addr_len = IPV6LENGTH; // 8
         addr_len = ISD_AD_LEN + host_addr_len;
     }
@@ -71,7 +73,7 @@ class SCIONAddr {
     void parse(char *raw) {
         // assert isinstance(raw, bytes)
         addr_len = strlen(raw);
-        if (addr_len < SCIONAddr.ISD_AD_LEN) {
+        if (addr_len < ISD_AD_LEN) {
             // logging.warning("SCIONAddr: Data too short for parsing, len: %u",
             //                  addr_len)
             // add logging warning.

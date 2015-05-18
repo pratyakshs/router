@@ -31,11 +31,15 @@
 
 using namespace std;
 
+#define IPV4LENGTH 32
+#define IPV6LENGTH 128
+
 class IPAddress {
+
+public:
 	int version;
 	int length;
 
-public:
 	IPAddress() {
 		version = 0;
 		length = 0;
