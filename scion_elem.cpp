@@ -24,7 +24,7 @@
  */
 
 #include <map>
-
+#include "IPAddress.h"
 #define SCION_UDP_PORT 30040
 #define SCION_UDP_EH_DATA_PORT 30041
 #define BUFLEN 8092
@@ -45,10 +45,10 @@ class SCIONElement {
      * :ivar addr: a `SCIONAddr` object representing the server address.
      * :vartype addr: :class:`lib.packet.scion_addr.SCIONAddr`
      */
-    type _addr;
+    SCIONAddr _addr;
     type topology;
     type config;
-    map<type, type> ifid2addr;
+    map<type, SCIONAddr> ifid2addr;
     type addr;
     type _local_socket;
     type _sockets;
