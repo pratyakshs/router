@@ -45,9 +45,13 @@ public:
 		length = 0;
 	}
 	virtual string to_string() {}
+	virtual uint32_t to_ulong() {}
 };
 
 class IPv4Address : public IPAddress {
+	/* Representation: If IP address is a.b.c.d. 
+	 * address[0] => a, address[1] => b, etc.
+	 */
 	bitset<8> address[4];
 
 	bool checked_parse(string addr) {
@@ -76,6 +80,7 @@ class IPv4Address : public IPAddress {
 
 public:
 	IPv4Address(string addr) {
+		version = 4;
 		if (!checked_parse(addr))
 			cerr << "Invalid IP address" << endl;
 	}
@@ -85,6 +90,15 @@ public:
 		cerr << "UNIMPLEMENTED" << endl;
 		exit(-1);
 		return "";
+	}
+
+	uint32_t to_ulong() {
+		assert(version == 4);
+		uint32_t addr = 0;
+		for(int i = 0; i < 4; i++) {
+			addr += address[i].to_ulong() << (8 * i);
+		}
+		return addr;
 	}
 
 };
@@ -199,6 +213,7 @@ class IPv6Address : public IPAddress {
 
 public:
 	IPv6Address(string addr) {
+		version = 6;
 		if (!checked_parse(addr))
 			cerr << "Invalid IP address" << endl;
 	}
@@ -210,4 +225,10 @@ public:
 		return "";
 	}
 
+	uint32_t to_ulong() {
+		if (version != 6)
+			cerr << "Cannot convert IPv6 address to ulong\n";
+		exit(-1);
+		return 0;
+	}
 };

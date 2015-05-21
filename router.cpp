@@ -20,8 +20,11 @@
 
 #include <string>
 #include <assert.h>
+#include <thread>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include "scion_elem.h"
-##include "topology.h"
+#include "topology.h"
 using namespace std;
 
 #define IFID_PKT_TOUT 0.5
@@ -79,6 +82,8 @@ class Router : public SCIONElement {
     InterfaceElement interface;
     map<??,??> pre_ext_handlers;
     map<??,??> post_ext_handlers;
+    int _remote_socket;
+    vector<int> _sockets;
 
 public:
     Router(IPv4Address addr, string topo_file, string config_file, 
@@ -119,21 +124,37 @@ public:
         // make sure that all arguments are passed properly to the constructor
         this->post_ext_handlers = post_ext_handlers;
 
-        this->_remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        this->_remote_socket.setsockopt(socket.SOL_SOCKET,
-                                       socket.SO_REUSEADDR, 1)
-        this->_remote_socket.bind((str(this->interface.addr),
-                                  this->interface.udp_port))
-        this->_sockets.append(this->_remote_socket)
+        _remote_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        const char val = 1;
+        int err = setsockopt(_remote_socket, SOL_SOCKET, SO_REUSEADDR, 
+        			(char *)&val, sizeof(val));
+        assert(err == 0);
+
+        struct sockaddr_in saddr; 
+        bzero((char *)&saddr, sizeof(saddr));
+        saddr.sin_family = AF_INET;
+        saddr.sin_port = interface.udp_port;
+        saddr.sin_addr.s_addr = interface.addr->to_ulong();
+        saddr.sin_port = htons(interface->udp_port);
+        err = bind(_remote_socket, (struct sockaddr *) &saddr,
+        			sizeof(saddr));
+        assert(err == 0);
+        this->_sockets.push_back(this->_remote_socket);
+
         logging.info("IP %s:%u", this->interface.addr, this->interface.udp_port)
     }
 
-    def run(self) {
-        threading.Thread(target=this->sync_interface, daemon=True).start()
-        SCIONElement.run(self)
+    void run() {
+        thread t(sync_interface);
+        t.detach();
+        ///? should run/start be called explicitly?
+
+        // threading.Thread(target=this->sync_interface, daemon=True).start()
+
+        SCIONElement::run();
     }
 
-    def send(self, packet, next_hop, use_local_socket=True) {
+    void send(PakcetType packet, NextHop next_hop, bool use_local_socket = true) {
         /* 
          * Sends packet to next_hop.addr (class of that object must implement
          * __str__ which returns IPv4 addr) using next_hop.port and local or remote
@@ -147,13 +168,13 @@ public:
          *     a remote socket).
          * :type use_local_socket: bool
         */
-        logging.info("Sending packet to %s", next_hop)
-        this->handle_extensions(packet, next_hop, False)
-        if use_local_socket:
-            SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
-        else:
-            this->_remote_socket.sendto(packet.pack(), (str(next_hop.addr),
-                next_hop.port))
+        logging.info("Sending packet to %s", next_hop);
+        this->handle_extensions(packet, next_hop, false);
+        if (use_local_socket)
+            SCIONElement::send(packet, next_hop.addr, next_hop.port);
+        else
+            _remote_socket.sendto(packet.pack(), (str(next_hop.addr),
+                next_hop.port));
     }
 
     def handle_extensions(self, spkt, next_hop, pre_routing_phase) {

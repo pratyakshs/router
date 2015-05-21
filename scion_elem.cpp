@@ -147,7 +147,7 @@ public:
                 return (self.ifid2addr[opaque_field.egress_if], SCION_UDP_PORT)
     }
 
-    void send(type packet, string dst, int dst_port=SCION_UDP_PORT){
+    static void send(type packet, string dst, int dst_port=SCION_UDP_PORT){
         /* Send *packet* to *dst* (to port *dst_port*) using the local socket.
          * Calling ``packet.pack()`` should return :class:`bytes`, and
          * ``dst.__str__()`` should return a string representing an IPv4 address.
@@ -162,7 +162,7 @@ public:
         _local_socket.sendto(packet.pack(), (str(dst), dst_port));
     } 
 
-    void run() {
+    static void run() {
         /* Main routine to receive packets and pass them to
          * :func:`handle_request()`.
          */

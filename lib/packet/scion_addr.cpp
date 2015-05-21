@@ -23,16 +23,9 @@
  *     Fill in the docstring.
  */
 
-// from bitstring import BitArray
-// import bitstring
-// from collections import namedtuple
-// from ipaddress import IPv4Address, IPv6Address, IPV4LENGTH, IPV6LENGTH
-// import logging
-// import socket
-// import struct
-
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 #include "IPAddress.h"
 
 // ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
