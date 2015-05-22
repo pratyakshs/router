@@ -17,101 +17,104 @@
  * ===========================================
  */
 
-# Stdlib
-import copy
+#include "opaque_field.cpp"
 
-# SCION
-from lib.packet.opaque_field import (
-    HopOpaqueField,
-    InfoOpaqueField,
-    OpaqueFieldType,
-)
+class PathBase {
+    /**
+     * Base class for paths in SCION.
+     *
+     * A path is a sequence of path segments dependent on the type of path. Path
+     * segments themselves are a sequence of opaque fields containing routing
+     * information for each AD-level hop.
+     */
+protected:
+    OpaqueField *up_segment_info;
+    vector<OpaqueField*> up_segment_hops;
+    OpaqueField *down_segment_info;
+    vector<OpaqueField*> down_segment_hops;
+    bool parsed;
+public:
+    PathBase() {
+        parsed = false;
+    }
 
+    void parse(char *raw) {}
 
-class PathBase(object):
-    """
-    Base class for paths in SCION.
+    BitArray pack() {}
 
-    A path is a sequence of path segments dependent on the type of path. Path
-    segments themselves are a sequence of opaque fields containing routing
-    information for each AD-level hop.
-    """
-    def __init__(self):
-        self.up_segment_info = None
-        self.up_segment_hops = []
-        self.down_segment_info = None
-        self.down_segment_hops = []
+    void reverse() {
+        /**
+         * Reverses the segment.
+         */
+        // Swap down segment and up segment.
+        vector<OpaqueField*> temp_hops = up_segment_hops;
+        up_segment_hops = down_segment_hops;
+        down_segment_hops = temp_hops;
 
-        self.parsed = False
+        OpaqueField *temp_info = up_segment_info;
+        up_segment_info = down_segment_info;
+        down_segment_info = temp_info;
 
-    def parse(self, raw):
-        pass
+        // Reverse flags.
+        if (up_segment_info)
+            up_segment_info->up_flag ^= true;
+        if (down_segment_info):
+            down_segment_info->up_flag ^= true;
+        // Reverse hops.
+        reverse(up_segment_hops.begin(), up_segment_hops.end());
+        reverse(down_segment_hops.begin(), down_segment_hops.end());
+    }
 
-    def pack(self):
-        pass
+    bool is_last_hop(OpaqueField *hop) {
+        /**
+         * Returns true if 'hop' equals to the last down-segment hop.
+         */
+        return (hop == NULL) 
+               || (*hop == *down_segment_hops[down_segment_hops.size()-1]);
+    }
 
-    def reverse(self):
-        """
-        Reverses the segment.
-        """
-        # Swap down segment and up segment.
-        self.up_segment_hops, self.down_segment_hops = \
-            self.down_segment_hops, self.up_segment_hops
-        self.up_segment_info, self.down_segment_info = \
-            self.down_segment_info, self.up_segment_info
-        # Reverse flags.
-        if self.up_segment_info is not None:
-            self.up_segment_info.up_flag ^= True
-        if self.down_segment_info is not None:
-            self.down_segment_info.up_flag ^= True
-        # Reverse hops.
-        self.up_segment_hops.reverse()
-        self.down_segment_hops.reverse()
+    bool is_first_hop(OpaqueField *hop) {
+        /**
+         * Returns true if 'hop' equals to the first up-segment hop.
+         */
+        return (hop == NULL) || (hop == up_segment_hops[0]);
+    }
 
-    def is_last_hop(self, hop):
-        """
-        Returns true if 'hop' equals to the last down-segment hop.
-        """
-        return hop is None or hop == self.down_segment_hops[-1]
+    TYPE get_first_hop_of() {
+        /**
+         * Depending on up_segment flag returns the first up- or down-segment hop.
+         */
+        if (up_segment_hops.size())
+            return up_segment_hops[0];
+        else if (down_segment_hops.size()) 
+            return down_segment_hops[0];
+        else return NULL;
+    };
 
-    def is_first_hop(self, hop):
-        """
-        Returns true if 'hop' equals to the first up-segment hop.
-        """
-        return hop is None or hop == self.up_segment_hops[0]
+    TYPE get_of(index) {
+        /**
+         * Returns the opaque field for the given index.
+         */   
+        // Build temporary flat list of opaque fields.
+        vector<TYPE> tmp = {up_segment_info};
+        tmp.reserve(2 + up_segment_hops.size() + down_segment_hops.size());
+        tmp.insert(tmp.end(), up_segment_hops.begin(), up_segment_hops.end());
+        tmp.push_back(down_segment_info);
+        tmp.insert(tmp.end(), down_segment_hops.begin(), down_segment_hops.end());
+        if (index >= tmp.size())
+            return NULL;
+        else
+            return tmp[index];
+    }
 
-    def get_first_hop_of(self):
-        """
-        Depending on up_segment flag returns the first up- or down-segment hop.
-        """
-        if self.up_segment_hops:
-            return self.up_segment_hops[0]
-        elif self.down_segment_hops:
-            return self.down_segment_hops[0]
-        else:
-            return None
+    string __str__() {}
 
-    def get_of(self, index):
-        """
-        Returns the opaque field for the given index.
-        """
-        # Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
-        tmp.append(self.down_segment_info)
-        tmp.extend(self.down_segment_hops)
-        if index >= len(tmp):
-            return None
-        else:
-            return tmp[index]
+    string __repr__() {
+        return __str__();
+    }
+};
 
-    def __str__(self):
-        pass
-
-    def __repr__(self):
-        return self.__str__()
-
-
+/*
 class CorePath(PathBase):
     """
     A (non-shortcut) path through the ISD core.
@@ -121,30 +124,30 @@ class CorePath(PathBase):
     | hop OF 1 \ ... | hop OF N | info OF down-segment |
     | hop OF 1 | ... | hop OF N |
     """
-    def __init__(self, raw=None):
-        PathBase.__init__(self)
+    def __init__(raw=None):
+        PathBase.__init__()
         self.core_segment_info = None
         self.core_segment_hops = []
 
         if raw is not None:
             self.parse(raw)
 
-    # TODO PSz: a flag is needed to distinguish downPath-only case. I.e. if
-    # SCIONPacket.up_path is false and path has only one special OF, then it
-    # should parse only DownPath. It would be easier to put down/up flag to SOF.
-    def parse(self, raw):
+    // TODO PSz: a flag is needed to distinguish downPath-only case. I.e. if
+    // SCIONPacket.up_path is false and path has only one special OF, then it
+    // should parse only DownPath. It would be easier to put down/up flag to SOF.
+    def parse(raw):
         """
         Parses the raw data and populates the fields accordingly.
         """
         assert isinstance(raw, bytes)
-        # Parse up-segment
+        // Parse up-segment
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         offset = InfoOpaqueField.LEN
         for _ in range(self.up_segment_info.hops):
             self.up_segment_hops.append(
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
-        # Parse core-segment
+        // Parse core-segment
         if len(raw) != offset:
             self.core_segment_info = \
                 InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
@@ -153,7 +156,7 @@ class CorePath(PathBase):
                 self.core_segment_hops.append(
                     HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
                 offset += HopOpaqueField.LEN
-        # Parse down-segment
+        // Parse down-segment
         if len(raw) != offset:
             self.down_segment_info = \
                 InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
@@ -165,7 +168,7 @@ class CorePath(PathBase):
 
         self.parsed = True
 
-    def pack(self):
+    def pack():
         """
         Packs the opaque fields and returns a byte array.
         """
@@ -185,17 +188,17 @@ class CorePath(PathBase):
 
         return b"".join(data)
 
-    def reverse(self):
-        PathBase.reverse(self)
+    def reverse():
+        PathBase.reverse()
         self.core_segment_hops.reverse()
         if self.core_segment_info is not None:
             self.core_segment_info.up_flag ^= True
 
-    def get_of(self, index):
+    def get_of(index):
         """
         Returns the opaque field for the given index.
         """
-        # Build temporary flat list of opaque fields.
+        // Build temporary flat list of opaque fields.
         tmp = [self.up_segment_info]
         tmp.extend(self.up_segment_hops)
         if self.core_segment_info:
@@ -238,7 +241,7 @@ class CorePath(PathBase):
         cp.down_segment_hops = dw_hops
         return cp
 
-    def __str__(self):
+    def __str__():
         s = []
         s.append("<Core-Path>:\n")
 
@@ -278,20 +281,20 @@ class CrossOverPath(PathBase):
     first hop of the down-segment respectively.
     """
 
-    def __init__(self, raw=None):
-        PathBase.__init__(self)
+    def __init__(raw=None):
+        PathBase.__init__()
         self.up_segment_upstream_ad = None
         self.down_segment_upstream_ad = None
 
         if raw is not None:
             self.parse(raw)
 
-    def parse(self, raw):
+    def parse(raw):
         """
         Parses the raw data and populates the fields accordingly.
         """
         assert isinstance(raw, bytes)
-        # Parse up-segment
+        // Parse up-segment
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         offset = InfoOpaqueField.LEN
         for _ in range(self.up_segment_info.hops):
@@ -302,7 +305,7 @@ class CrossOverPath(PathBase):
             HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
 
-        # Parse down-segment
+        // Parse down-segment
         self.down_segment_info = \
             InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
         offset += InfoOpaqueField.LEN
@@ -316,7 +319,7 @@ class CrossOverPath(PathBase):
 
         self.parsed = True
 
-    def pack(self):
+    def pack():
         """
         Packs the opaque fields and returns a byte array.
         """
@@ -332,15 +335,15 @@ class CrossOverPath(PathBase):
 
         return b"".join(data)
 
-    def reverse(self):
-        # Reverse hops and info fields.
-        PathBase.reverse(self)
-        # Reverse upstream AD fields.
+    def reverse():
+        // Reverse hops and info fields.
+        PathBase.reverse()
+        // Reverse upstream AD fields.
         self.up_segment_upstream_ad, self.down_segment_upstream_ad = \
             self.down_segment_upstream_ad, self.up_segment_upstream_ad
 
-    def get_of(self, index):
-        # Build temporary flat list of opaque fields.
+    def get_of(index):
+        // Build temporary flat list of opaque fields.
         tmp = [self.up_segment_info]
         tmp.extend(self.up_segment_hops)
         tmp.append(self.up_segment_upstream_ad)
@@ -349,7 +352,7 @@ class CrossOverPath(PathBase):
         tmp.extend(self.down_segment_hops)
         return tmp[index]
 
-    def __str__(self):
+    def __str__():
         s = []
         s.append("<CrossOver-Path>:\n<Up-Segment>:\n")
         s.append(str(self.up_segment_info) + "\n")
@@ -378,8 +381,8 @@ class PeerPath(PathBase):
     first hop of the down-segment respectively.
     """
 
-    def __init__(self, raw=None):
-        PathBase.__init__(self)
+    def __init__(raw=None):
+        PathBase.__init__()
         self.up_segment_peering_link = None
         self.up_segment_upstream_ad = None
         self.down_segment_peering_link = None
@@ -387,12 +390,12 @@ class PeerPath(PathBase):
         if raw is not None:
             self.parse(raw)
 
-    def parse(self, raw):
+    def parse(raw):
         """
         Parses the raw data and populates the fields accordingly.
         """
         assert isinstance(raw, bytes)
-        # Parse up-segment
+        // Parse up-segment
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         offset = InfoOpaqueField.LEN
         for _ in range(self.up_segment_info.hops):
@@ -406,7 +409,7 @@ class PeerPath(PathBase):
             HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
 
-        # Parse down-segment
+        // Parse down-segment
         self.down_segment_info = \
             InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
         offset += InfoOpaqueField.LEN
@@ -423,7 +426,7 @@ class PeerPath(PathBase):
 
         self.parsed = True
 
-    def pack(self):
+    def pack():
         """
         Packs the opaque fields and returns a byte array.
         """
@@ -441,17 +444,17 @@ class PeerPath(PathBase):
 
         return b"".join(data)
 
-    def reverse(self):
-        # Reverse hop and info fields.
-        PathBase.reverse(self)
-        # Reverse upstream AD and peering link fields.
+    def reverse():
+        // Reverse hop and info fields.
+        PathBase.reverse()
+        // Reverse upstream AD and peering link fields.
         self.up_segment_upstream_ad, self.down_segment_upstream_ad = \
             self.down_segment_upstream_ad, self.up_segment_upstream_ad
         self.up_segment_peering_link, self.down_segment_peering_link = \
             self.down_segment_peering_link, self.up_segment_peering_link
 
-    def get_of(self, index):
-        # Build temporary flat list of opaque fields.
+    def get_of(index):
+        // Build temporary flat list of opaque fields.
         tmp = [self.up_segment_info]
         tmp.extend(self.up_segment_hops)
         tmp.append(self.up_segment_peering_link)
@@ -462,7 +465,7 @@ class PeerPath(PathBase):
         tmp.extend(self.down_segment_hops)
         return tmp[index]
 
-    def __str__(self):
+    def __str__():
         s = []
         s.append("<Peer-Path>:\n<Up-Segment>:\n")
         s.append(str(self.up_segment_info) + "\n")
@@ -488,36 +491,36 @@ class EmptyPath(PathBase):
     This is currently needed for intra AD communication, which doesn't need a
     SCION path but still uses SCION packets for communication.
     """
-    def __init__(self, raw=None):
-        PathBase.__init__(self)
+    def __init__(raw=None):
+        PathBase.__init__()
 
         if raw is not None:
             self.parse(raw)
 
-    def parse(self, raw):
+    def parse(raw):
         assert isinstance(raw, bytes)
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
-        # We do this so we can still reverse the segment.
+        // We do this so we can still reverse the segment.
         self.down_segment_info = self.up_segment_info
 
         self.parsed = True
 
-    def pack(self):
+    def pack():
         return b''
 
-    def is_first_hop(self, hop):
+    def is_first_hop(hop):
         return True
 
-    def is_last_hop(self, hop):
+    def is_last_hop(hop):
         return True
 
-    def get_first_hop_of(self):
+    def get_first_hop_of():
         return None
 
-    def get_of(self, index):
+    def get_of(index):
         return self.up_segment_info
 
-    def __str__(self):
+    def __str__():
         return "<Empty-Path></Empty-Path>"
 
 
@@ -538,9 +541,9 @@ class PathCombinator(object):
                 not up_segment.ads or not down_segment.ads):
             return None
 
-        # If we have a core segment, check that the core_segment connects the
-        # up_ and down_segment. Otherwise, check that up- and down-segment meet
-        # at a single core AD.
+        // If we have a core segment, check that the core_segment connects the
+        // up_ and down_segment. Otherwise, check that up- and down-segment meet
+        // at a single core AD.
         if ((core_segment and
                 (core_segment.get_last_pcbm().ad_id !=
                  up_segment.get_first_pcbm().ad_id) or
@@ -634,11 +637,11 @@ class PathCombinator(object):
         Takes PCB objects (up/down_segment) and tries to combine
         them as short path
         """
-        # TODO check if stub ADs are the same...
+        // TODO check if stub ADs are the same...
         if (not up_segment or not down_segment or
                 not up_segment.ads or not down_segment.ads):
             return None
-        # looking for xovr and peer points
+        // looking for xovr and peer points
         xovrs = []
         peers = []
         for up_i in range(1, len(up_segment.ads)):
@@ -653,7 +656,7 @@ class PathCombinator(object):
                             if (up_peer.ad_id == down_ad.pcbm.ad_id and
                                     down_peer.ad_id == up_ad.pcbm.ad_id):
                                 peers.append((up_i, down_i))
-        # select shortest path xovrs (preferred) or peers
+        // select shortest path xovrs (preferred) or peers
         xovrs.sort(key=lambda tup: sum(tup))
         peers.sort(key=lambda tup: sum(tup))
         if not xovrs and not peers:
@@ -669,7 +672,7 @@ class PathCombinator(object):
             return PathCombinator._join_shortcuts(up_segment, down_segment,
                                                   xovrs[-1],
                                                   False)
-        else:  # peers only
+        else:  // peers only
             return PathCombinator._join_shortcuts(up_segment, down_segment,
                                                   peers[-1],
                                                   True)
@@ -708,3 +711,4 @@ class PathCombinator(object):
                 if path and path not in paths:
                     paths.append(path)
         return paths
+*/
