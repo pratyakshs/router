@@ -95,7 +95,7 @@ IPv4Address get_type(SCIONPacket pkt) {
             return src_addr;
     }
 
-    
+
     IPv4Address dst_addr = *(pkt.get_hdr().dst_addr.host_addr);
     for(auto it = PacketType::DST.begin(); it != PacketType::DST.end(); it++) {
         if (*it == dst_addr) 
@@ -152,7 +152,7 @@ class SCIONCommonHdr : public HeaderBase {
         int dlen = strlen(raw);
         if (dlen < SCIONCommonHdr::LEN) {
             // logging.warning("Data too short to parse SCION common header: "
-                            // "data len %u", dlen)
+            // "data len %u", dlen)
             return;
         }
         BitArray bits(raw);
@@ -173,7 +173,7 @@ class SCIONCommonHdr : public HeaderBase {
          * Returns the common header as 8 byte binary string.
          */
         types = ((version << 12) | (dst_addr_len << 6) |
-                 src_addr_len);
+                src_addr_len);
 
         BitArray res;
         res.append(types, 16);
@@ -197,286 +197,276 @@ class SCIONCommonHdr : public HeaderBase {
     }
 };
 
-    // class SCIONHeader : public HeaderBase {
-    //     /* The SCION packet header.
-    //      */
-    //     static const int MIN_LEN = 16;  // Update when values are fixed.
-    //     SCIONCommonHdr common_hdr;
-    //     type src_addr;
-    //     type dst_addr;
-    //     type path;
-    //     vector<type> _extension_hdrs;
+class SCIONHeader : public HeaderBase {
+    /**
+     * The SCION packet header.
+     */
+    static const int MIN_LEN = 16;  // Update when values are fixed.
+    SCIONCommonHdr common_hdr;
+    SCIONAddr src_addr;
+    SCIONAddr dst_addr;
+    PathBase path;
+    vector<type> _extension_hdrs;
+    bool path_set;
 
-    // public:
-    //     SCIONHeader(char *raw) : HeaderBase() {
-    //         common_hdr = None;
-    //         src_addr = None;
-    //         dst_addr = None;
-    //         _path = None;
+public:
+    SCIONHeader(char *raw) : HeaderBase() {
+        if (raw)
+            parse(raw);
+    }
 
-    //         if raw is not None:
-    //             self.parse(raw)
-    //     }
+    SCIONHeader(SCIONAddr src, SCIONAddr dst, PathBase path, 
+                vector<type> ext_hdrs, int next_hdr=0) {
+        /**
+         * Constructor with the values specified.
+         */
+        common_hdr = SCIONCommonHdr(src.addr_len, dst.addr_len,
+                                    next_hdr);
+        src_addr = src;
+        dst_addr = dst;
+        this->path = path;
+        extension_hdrs = ext_hdrs;
+        path_set = 1;
+    }
 
-    //     SCIONHeader(SCIONAddr src, SCIONAddr dst, path=None, ext_hdrs=None, next_hdr=0) {
-    //         /* Constructor with the values specified.
-    //          */
-    //         assert path is None or isinstance(path, PathBase)
-    //         if ext_hdrs is None:
-    //             ext_hdrs = []
-    //         common_hdr = SCIONCommonHdr.from_values(src.addr_len, dst.addr_len,
-    //                                                     next_hdr)
-    //         src_addr = src
-    //         dst_addr = dst
-    //         path = path
-    //         extension_hdrs = ext_hdrs
+    PathBase get_path() {
+        /** 
+         * Returns the path in the header.
+         */
+        return path;
+    }
 
-    //         return hdr
-    //     }
+    void set_path(PathBase path) {
+        /**
+         * Sets path to 'path' and updates necessary fields..
+         */
+        if (path_set) {
+            int path_len = path.pack().length();
+            common_hdr.hdr_len -= path_len;
+            common_hdr.total_len -= path_len;
+        }
+        this->path = path;
+        if path is not None:
+            path_len = len(path.pack());
+            common_hdr.hdr_len += path_len;
+            common_hdr.total_len += path_len;
+    }
 
-    //     @property
-    //     def path(self):
-    //         """
-    //         Returns the path in the header.
-    //         """
-    //         return self._path
+    @property
+    def extension_hdrs(self):
+        """
+        Returns the extension headers.
+        """
+        return self._extension_hdrs
 
-    //     @path.setter
-    //     def path(self, path):
-    //         """
-    //         Sets path to 'path'.
-    //         """
-    //         self.set_path(path)
+    @extension_hdrs.setter
+    def extension_hdrs(self, ext_hdrs):
+        """
+        Sets extension headers.
+        """
+        self.set_ext_hdrs(ext_hdrs)
 
-    //     def set_path(self, path):
-    //         """
-    //         Sets path to 'path' and updates necessary fields..
-    //         """
-    //         if self._path is not None:
-    //             path_len = len(self._path.pack())
-    //             self.common_hdr.hdr_len -= path_len
-    //             self.common_hdr.total_len -= path_len
-    //         self._path = path
-    //         if path is not None:
-    //             path_len = len(path.pack())
-    //             self.common_hdr.hdr_len += path_len
-    //             self.common_hdr.total_len += path_len
+    def set_ext_hdrs(self, ext_hdrs):
+        """
+        Sets extension headers and updates necessary fields.
+        """
+        assert isinstance(ext_hdrs, list)
+        while self._extension_hdrs:
+            self.pop_ext_hdr()
+        for ext_hdr in ext_hdrs:
+            self.append_ext_hdr(ext_hdr)
 
-    //     @property
-    //     def extension_hdrs(self):
-    //         """
-    //         Returns the extension headers.
-    //         """
-    //         return self._extension_hdrs
+    def append_ext_hdr(self, ext_hdr):
+        """
+        Appends an extension header and updates necessary fields.
+        """
+        assert isinstance(ext_hdr, ExtensionHeader)
+        self._extension_hdrs.append(ext_hdr)
+        self.common_hdr.total_len += len(ext_hdr)
 
-    //     @extension_hdrs.setter
-    //     def extension_hdrs(self, ext_hdrs):
-    //         """
-    //         Sets extension headers.
-    //         """
-    //         self.set_ext_hdrs(ext_hdrs)
+    def pop_ext_hdr(self):
+        """
+        Pops and returns the last extension header and updates necessary fields.
+        """
+        if not self._extension_hdrs:
+            return
+        ext_hdr = self._extension_hdrs.pop()
+        self.common_hdr.total_len -= len(ext_hdr)
+        return ext_hdr
 
-    //     def set_ext_hdrs(self, ext_hdrs):
-    //         """
-    //         Sets extension headers and updates necessary fields.
-    //         """
-    //         assert isinstance(ext_hdrs, list)
-    //         while self._extension_hdrs:
-    //             self.pop_ext_hdr()
-    //         for ext_hdr in ext_hdrs:
-    //             self.append_ext_hdr(ext_hdr)
+    def parse(self, raw):
+        """
+        Parses the raw data and populates the fields accordingly.
+        """
+        assert isinstance(raw, bytes)
+        dlen = len(raw)
+        if dlen < SCIONHeader.MIN_LEN:
+            logging.warning("Data too short to parse SCION header: "
+                            "data len %u", dlen)
+            return
+        offset = 0
+        self.common_hdr = \
+            SCIONCommonHdr(raw[offset:offset + SCIONCommonHdr.LEN])
+        offset += SCIONCommonHdr.LEN
+        assert self.common_hdr.parsed
+        // Create appropriate SCIONAddr objects.
+        src_addr_len = self.common_hdr.src_addr_len
+        self.src_addr = SCIONAddr(raw[offset:offset + src_addr_len])
+        offset += src_addr_len
+        dst_addr_len = self.common_hdr.dst_addr_len
+        self.dst_addr = SCIONAddr(raw[offset:offset + dst_addr_len])
+        offset += dst_addr_len
+        // Parse opaque fields.
+        // PSz: UpPath-only case missing, quick fix:
+        if offset == self.common_hdr.hdr_len:
+            self._path = EmptyPath()
+        else:
+            info = InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
+            if info.info == OFT.TDC_XOVR:
+                self._path = CorePath(raw[offset:self.common_hdr.hdr_len])
+            elif info.info == OFT.NON_TDC_XOVR:
+                self._path = CrossOverPath(raw[offset:self.common_hdr.hdr_len])
+            elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
+                self._path = PeerPath(raw[offset:self.common_hdr.hdr_len])
+            else:
+                logging.info("Can not parse path in packet: Unknown type %x",
+                             info.info)
+        offset = self.common_hdr.hdr_len
+        // Parse extensions headers.
+        // FIXME: The last extension header should be a layer 4 protocol header.
+        // At the moment this is not support and we just indicate the end of the
+        // extension headers by a 0 in the type field.
+        cur_hdr_type = self.common_hdr.next_hdr
+        while cur_hdr_type != 0:
+            bits = BitArray(raw[offset: offset + 2])
+            (next_hdr_type, hdr_len) = bits.unpack("uintbe:8, uintbe:8")
+            logging.info("Found extension hdr of type %u with len %u",
+                         cur_hdr_type, hdr_len)
+            if cur_hdr_type == ICNExtHdr.TYPE:
+                self.extension_hdrs.append(
+                    ICNExtHdr(raw[offset:offset + hdr_len]))
+            else:
+                self.extension_hdrs.append(
+                    ExtensionHeader(raw[offset:offset + hdr_len]))
+            cur_hdr_type = next_hdr_type
+            offset += hdr_len
+        self.parsed = True
 
-    //     def append_ext_hdr(self, ext_hdr):
-    //         """
-    //         Appends an extension header and updates necessary fields.
-    //         """
-    //         assert isinstance(ext_hdr, ExtensionHeader)
-    //         self._extension_hdrs.append(ext_hdr)
-    //         self.common_hdr.total_len += len(ext_hdr)
+    def pack(self):
+        """
+        Packs the header and returns a byte array.
+        """
+        data = []
+        data.append(self.common_hdr.pack())
+        data.append(self.src_addr.pack())
+        data.append(self.dst_addr.pack())
+        if self.path is not None:
+            data.append(self.path.pack())
+        for ext_hdr in self.extension_hdrs:
+            data.append(ext_hdr.pack())
+        return b"".join(data)
 
-    //     def pop_ext_hdr(self):
-    //         """
-    //         Pops and returns the last extension header and updates necessary fields.
-    //         """
-    //         if not self._extension_hdrs:
-    //             return
-    //         ext_hdr = self._extension_hdrs.pop()
-    //         self.common_hdr.total_len -= len(ext_hdr)
-    //         return ext_hdr
+    def get_current_of(self):
+        """
+        Returns the current opaque field as pointed by the current_of field in
+        the common_hdr.
+        """
+        if self.path is None:
+            return None
+        offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
+                  self.common_hdr.dst_addr_len))
+        return self.path.get_of(offset // OpaqueField.LEN)
 
-    //     def parse(self, raw):
-    //         """
-    //         Parses the raw data and populates the fields accordingly.
-    //         """
-    //         assert isinstance(raw, bytes)
-    //         dlen = len(raw)
-    //         if dlen < SCIONHeader.MIN_LEN:
-    //             logging.warning("Data too short to parse SCION header: "
-    //                             "data len %u", dlen)
-    //             return
-    //         offset = 0
-    //         self.common_hdr = \
-    //             SCIONCommonHdr(raw[offset:offset + SCIONCommonHdr.LEN])
-    //         offset += SCIONCommonHdr.LEN
-    //         assert self.common_hdr.parsed
-    //         // Create appropriate SCIONAddr objects.
-    //         src_addr_len = self.common_hdr.src_addr_len
-    //         self.src_addr = SCIONAddr(raw[offset:offset + src_addr_len])
-    //         offset += src_addr_len
-    //         dst_addr_len = self.common_hdr.dst_addr_len
-    //         self.dst_addr = SCIONAddr(raw[offset:offset + dst_addr_len])
-    //         offset += dst_addr_len
-    //         // Parse opaque fields.
-    //         // PSz: UpPath-only case missing, quick fix:
-    //         if offset == self.common_hdr.hdr_len:
-    //             self._path = EmptyPath()
-    //         else:
-    //             info = InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-    //             if info.info == OFT.TDC_XOVR:
-    //                 self._path = CorePath(raw[offset:self.common_hdr.hdr_len])
-    //             elif info.info == OFT.NON_TDC_XOVR:
-    //                 self._path = CrossOverPath(raw[offset:self.common_hdr.hdr_len])
-    //             elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
-    //                 self._path = PeerPath(raw[offset:self.common_hdr.hdr_len])
-    //             else:
-    //                 logging.info("Can not parse path in packet: Unknown type %x",
-    //                              info.info)
-    //         offset = self.common_hdr.hdr_len
-    //         // Parse extensions headers.
-    //         // FIXME: The last extension header should be a layer 4 protocol header.
-    //         // At the moment this is not support and we just indicate the end of the
-    //         // extension headers by a 0 in the type field.
-    //         cur_hdr_type = self.common_hdr.next_hdr
-    //         while cur_hdr_type != 0:
-    //             bits = BitArray(raw[offset: offset + 2])
-    //             (next_hdr_type, hdr_len) = bits.unpack("uintbe:8, uintbe:8")
-    //             logging.info("Found extension hdr of type %u with len %u",
-    //                          cur_hdr_type, hdr_len)
-    //             if cur_hdr_type == ICNExtHdr.TYPE:
-    //                 self.extension_hdrs.append(
-    //                     ICNExtHdr(raw[offset:offset + hdr_len]))
-    //             else:
-    //                 self.extension_hdrs.append(
-    //                     ExtensionHeader(raw[offset:offset + hdr_len]))
-    //             cur_hdr_type = next_hdr_type
-    //             offset += hdr_len
-    //         self.parsed = True
+    def get_current_iof(self):
+        """
+        Returns the Info Opaque Field as pointed by the current_iof_p field in
+        the common_hdr.
+        """
+        if self.path is None:
+            return None
+        offset = (self.common_hdr.curr_iof_p -
+                  (self.common_hdr.src_addr_len + self.common_hdr.dst_addr_len))
+        return self.path.get_of(offset // OpaqueField.LEN)
 
-    //     def pack(self):
-    //         """
-    //         Packs the header and returns a byte array.
-    //         """
-    //         data = []
-    //         data.append(self.common_hdr.pack())
-    //         data.append(self.src_addr.pack())
-    //         data.append(self.dst_addr.pack())
-    //         if self.path is not None:
-    //             data.append(self.path.pack())
-    //         for ext_hdr in self.extension_hdrs:
-    //             data.append(ext_hdr.pack())
-    //         return b"".join(data)
+    def get_relative_of(self, n):
+        """
+        Returns (number_of_current_of + n)th opaque field. n may be negative.
+        """
+        if self.path is None:
+            return None
+        offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
+                  self.common_hdr.dst_addr_len))
+        return self.path.get_of(offset // OpaqueField.LEN + n)
 
-    //     def get_current_of(self):
-    //         """
-    //         Returns the current opaque field as pointed by the current_of field in
-    //         the common_hdr.
-    //         """
-    //         if self.path is None:
-    //             return None
-    //         offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
-    //                   self.common_hdr.dst_addr_len))
-    //         return self.path.get_of(offset // OpaqueField.LEN)
+    def get_next_of(self):
+        """
+        Returns the opaque field after the one pointed by the current_of field
+        in the common hdr or 'None' if there exists no next opaque field.
+        """
+        if self.path is None:
+            return None
+        offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
+                  self.common_hdr.dst_addr_len))
+        return self.path.get_of(offset // OpaqueField.LEN + 1)
 
-    //     def get_current_iof(self):
-    //         """
-    //         Returns the Info Opaque Field as pointed by the current_iof_p field in
-    //         the common_hdr.
-    //         """
-    //         if self.path is None:
-    //             return None
-    //         offset = (self.common_hdr.curr_iof_p -
-    //                   (self.common_hdr.src_addr_len + self.common_hdr.dst_addr_len))
-    //         return self.path.get_of(offset // OpaqueField.LEN)
+    def increase_of(self, number):
+        """
+        Increases pointer of current opaque field by number of opaque fields.
+        """
+        self.common_hdr.curr_of_p += number * OpaqueField.LEN
 
-    //     def get_relative_of(self, n):
-    //         """
-    //         Returns (number_of_current_of + n)th opaque field. n may be negative.
-    //         """
-    //         if self.path is None:
-    //             return None
-    //         offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
-    //                   self.common_hdr.dst_addr_len))
-    //         return self.path.get_of(offset // OpaqueField.LEN + n)
+    def set_downpath(self):  // FIXME probably not needed
+        """
+        Sets down path flag.
+        """
+        iof = self.get_current_iof()
+        if iof is not None:
+            iof.up_flag = False
 
-    //     def get_next_of(self):
-    //         """
-    //         Returns the opaque field after the one pointed by the current_of field
-    //         in the common hdr or 'None' if there exists no next opaque field.
-    //         """
-    //         if self.path is None:
-    //             return None
-    //         offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
-    //                   self.common_hdr.dst_addr_len))
-    //         return self.path.get_of(offset // OpaqueField.LEN + 1)
+    def is_on_up_path(self):
+        """
+        Returns 'True' if the current opaque field should be interpreted as an
+        up-path opaque field and 'False' otherwise.
 
-    //     def increase_of(self, number):
-    //         """
-    //         Increases pointer of current opaque field by number of opaque fields.
-    //         """
-    //         self.common_hdr.curr_of_p += number * OpaqueField.LEN
+        Currently this is indicated by a bit in the LSB of the 'type' field in
+        the common header.
+        """
+        iof = self.get_current_iof()
+        if iof is not None:
+            return iof.up_flag
+        else:
+            True  // FIXME for now True for EmptyPath.
 
-    //     def set_downpath(self):  // FIXME probably not needed
-    //         """
-    //         Sets down path flag.
-    //         """
-    //         iof = self.get_current_iof()
-    //         if iof is not None:
-    //             iof.up_flag = False
+    def is_last_path_of(self):
+        """
+        Returs 'True' if the current opaque field is the last opaque field,
+        'False' otherwise.
+        """
+        offset = (SCIONCommonHdr.LEN + OpaqueField.LEN)
+        return self.common_hdr.curr_of_p + offset == self.common_hdr.hdr_len
 
-    //     def is_on_up_path(self):
-    //         """
-    //         Returns 'True' if the current opaque field should be interpreted as an
-    //         up-path opaque field and 'False' otherwise.
+    def reverse(self):
+        """
+        Reverses the header.
+        """
+        (self.src_addr, self.dst_addr) = (self.dst_addr, self.src_addr)
+        self.path.reverse()
+        self.common_hdr.curr_of_p = (self.common_hdr.src_addr_len +
+                                     self.common_hdr.dst_addr_len)
+        self.common_hdr.curr_iof_p = self.common_hdr.curr_of_p
 
-    //         Currently this is indicated by a bit in the LSB of the 'type' field in
-    //         the common header.
-    //         """
-    //         iof = self.get_current_iof()
-    //         if iof is not None:
-    //             return iof.up_flag
-    //         else:
-    //             True  // FIXME for now True for EmptyPath.
+    def __len__(self):
+        length = self.common_hdr.hdr_len
+        for ext_hdr in self.extension_hdrs:
+            length += len(ext_hdr)
+        return length
 
-    //     def is_last_path_of(self):
-    //         """
-    //         Returs 'True' if the current opaque field is the last opaque field,
-    //         'False' otherwise.
-    //         """
-    //         offset = (SCIONCommonHdr.LEN + OpaqueField.LEN)
-    //         return self.common_hdr.curr_of_p + offset == self.common_hdr.hdr_len
-
-    //     def reverse(self):
-    //         """
-    //         Reverses the header.
-    //         """
-    //         (self.src_addr, self.dst_addr) = (self.dst_addr, self.src_addr)
-    //         self.path.reverse()
-    //         self.common_hdr.curr_of_p = (self.common_hdr.src_addr_len +
-    //                                      self.common_hdr.dst_addr_len)
-    //         self.common_hdr.curr_iof_p = self.common_hdr.curr_of_p
-
-    //     def __len__(self):
-    //         length = self.common_hdr.hdr_len
-    //         for ext_hdr in self.extension_hdrs:
-    //             length += len(ext_hdr)
-    //         return length
-
-    //     def __str__(self):
-    //         sh_list = []
-    //         sh_list.append(str(self.common_hdr) + "\n")
-    //         sh_list.append(str(self.src_addr) + " >> " + str(self.dst_addr) + "\n")
-    //         sh_list.append(str(self.path) + "\n")
-    //         for ext_hdr in self.extension_hdrs:
-    //             sh_list.append(str(ext_hdr) + "\n")
-    //         return "".join(sh_list)
-    // };
+    def __str__(self):
+        sh_list = []
+        sh_list.append(str(self.common_hdr) + "\n")
+        sh_list.append(str(self.src_addr) + " >> " + str(self.dst_addr) + "\n")
+        sh_list.append(str(self.path) + "\n")
+        for ext_hdr in self.extension_hdrs:
+            sh_list.append(str(ext_hdr) + "\n")
+        return "".join(sh_list)
+};

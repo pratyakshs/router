@@ -35,7 +35,7 @@ using namespace std;
 
 class BitArray {
 	vector<bool> array;
-	int length;
+	uint32_t _length;
 
 public:
 	BitArray(char *raw) {
@@ -49,14 +49,14 @@ public:
 			for(int j = 0; j < 8; j++) 
 				array.push_back(c[j]);
 		}
-		length = 8 * len;
+		_length = 8 * len;
 	}
 
 	BitArray() {
 		/**
 		 * Default constructor.
 		 */
-		length = 0;
+		_length = 0;
 		array.clear();
 	}
 
@@ -91,5 +91,10 @@ public:
 		bitset<64> _val(val);
 		for(int i = len-1; i >= 0; i++) 
 			array.push_back(_val[i]);
+		_length += len;
+	}
+
+	uint32_t length() {
+		return _length;
 	}
 };
