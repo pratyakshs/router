@@ -27,8 +27,8 @@
 #include <bitset>
 #include <iostream>
 #include <stdint.h>
-#include <assert.h>
-
+#include <cassert>
+#include <cstdlib>
 using namespace std;
 
 #define IPV4LENGTH 32
@@ -81,6 +81,7 @@ class IPv4Address : public IPAddress {
 public:
 	IPv4Address(string addr) {
 		version = 4;
+		length = IPV4LENGTH;
 		if (!checked_parse(addr))
 			cerr << "Invalid IP address" << endl;
 	}
@@ -214,6 +215,7 @@ class IPv6Address : public IPAddress {
 public:
 	IPv6Address(string addr) {
 		version = 6;
+		length = IPV6LENGTH;
 		if (!checked_parse(addr))
 			cerr << "Invalid IP address" << endl;
 	}
@@ -232,3 +234,17 @@ public:
 		return 0;
 	}
 };
+
+bool operator==(IPv4Address a, IPv4Address b) {
+	assert (a.version == b.version);
+	return a.to_ulong() == b.to_ulong();
+}
+
+bool operator==(IPAddress a, IPAddress b) {
+	if (a.version != b.version)
+		return false;
+	if (a.version == 4)
+		return a.to_ulong() == b.to_ulong();
+	cerr << "Equality check for IPv6 UNIMPLEMENTED" << endl;
+	exit(-1); 
+}

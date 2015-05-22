@@ -78,22 +78,30 @@ const vector<IPv4Address> PacketType::SRC = {BEACON, PATH_MGMT, CERT_CHAIN_REP, 
 const vector<IPv4Address> PacketType::DST = {PATH_MGMT, TRC_REQ, TRC_REQ_LOCAL, CERT_CHAIN_REQ,
     CERT_CHAIN_REQ_LOCAL, IFID_PKT};
 
-int get_type(pkt) {
+IPv4Address get_type(SCIONPacket pkt) {
     /* Return the packet type; used for dispatching.
      *
      * :param pkt: the packet.
-     * :type pkt: bytes
+     * :type pkt: SCIONPacket
      * :returns: the packet type.
-     * :rtype: int
+     * :rtype: IPv4Address
      */
-    // if pkt.hdr.src_addr.host_addr in PacketType.SRC:
-    //     return pkt.hdr.src_addr.host_addr
-    // if pkt.hdr.dst_addr.host_addr in PacketType.DST:
-    //     return pkt.hdr.dst_addr.host_addr
-    // return PacketType.DATA
+    IPv4Address src_addr = *(pkt.get_hdr().src_addr.host_addr);
+    for(auto it = PacketType::SRC.begin(); it != PacketType::SRC.end(); it++) {
+        if (*it == src_addr) 
+            return src_addr;
+    }
 
-    cerr << "***UNIMPLEMENTED***" << endl;
-    exit(-1);
+    
+    IPv4Address dst_addr = *(pkt.get_hdr().dst_addr.host_addr);
+    for(auto it = PacketType::DST.begin(); it != PacketType::DST.end(); it++) {
+        if (*it == dst_addr) 
+            return dst_addr;
+    }
+
+    cerr << "Error not handled gracefully" << endl;
+    return IPAddress("0.0.0.0");
+
     return 0;
 }
 
