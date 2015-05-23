@@ -18,6 +18,7 @@
  */
 
 #include "opaque_field.cpp"
+#include <algorithm>
 
 class PathBase {
     /**
@@ -28,10 +29,10 @@ class PathBase {
      * information for each AD-level hop.
      */
 protected:
-    OpaqueField *up_segment_info;
-    vector<OpaqueField*> up_segment_hops;
-    OpaqueField *down_segment_info;
-    vector<OpaqueField*> down_segment_hops;
+    InfoOpaqueField up_segment_info;
+    vector<HopOpaqueField> up_segment_hops;
+    InfoOpaqueField down_segment_info;
+    vector<HopOpaqueField> down_segment_hops;
     bool parsed;
 public:
     PathBase() {
@@ -47,67 +48,67 @@ public:
          * Reverses the segment.
          */
         // Swap down segment and up segment.
-        vector<OpaqueField*> temp_hops = up_segment_hops;
+        vector<HopOpaqueField> temp_hops = up_segment_hops;
         up_segment_hops = down_segment_hops;
         down_segment_hops = temp_hops;
 
-        OpaqueField *temp_info = up_segment_info;
+        InfoOpaqueField temp_info = up_segment_info;
         up_segment_info = down_segment_info;
         down_segment_info = temp_info;
 
         // Reverse flags.
-        if (up_segment_info)
-            up_segment_info->up_flag ^= true;
-        if (down_segment_info):
-            down_segment_info->up_flag ^= true;
+        //? not checking here if up_segment_info
+        //? and down_segment_info were initialized.
+        up_segment_info.up_flag ^= true;
+        down_segment_info.up_flag ^= true;
         // Reverse hops.
-        reverse(up_segment_hops.begin(), up_segment_hops.end());
-        reverse(down_segment_hops.begin(), down_segment_hops.end());
+        std::reverse(up_segment_hops.begin(), up_segment_hops.end());
+        std::reverse(down_segment_hops.begin(), down_segment_hops.end());
     }
 
-    bool is_last_hop(OpaqueField *hop) {
+    bool is_last_hop(HopOpaqueField hop) {
         /**
          * Returns true if 'hop' equals to the last down-segment hop.
          */
-        return (hop == NULL) 
-               || (*hop == *down_segment_hops[down_segment_hops.size()-1]);
+        return (hop == down_segment_hops[down_segment_hops.size()-1]);
     }
 
-    bool is_first_hop(OpaqueField *hop) {
+    bool is_first_hop(HopOpaqueField hop) {
         /**
          * Returns true if 'hop' equals to the first up-segment hop.
          */
-        return (hop == NULL) || (hop == up_segment_hops[0]);
+        return (hop == up_segment_hops[0]);
     }
 
-    TYPE get_first_hop_of() {
+    HopOpaqueField * get_first_hop_of() {
         /**
          * Depending on up_segment flag returns the first up- or down-segment hop.
          */
         if (up_segment_hops.size())
-            return up_segment_hops[0];
+            return &up_segment_hops[0];
         else if (down_segment_hops.size()) 
-            return down_segment_hops[0];
+            return &down_segment_hops[0];
         else return NULL;
-    };
+    }
 
-    TYPE get_of(index) {
+    HopOpaqueField* get_of(int index) {
         /**
          * Returns the opaque field for the given index.
          */   
         // Build temporary flat list of opaque fields.
-        vector<TYPE> tmp = {up_segment_info};
-        tmp.reserve(2 + up_segment_hops.size() + down_segment_hops.size());
-        tmp.insert(tmp.end(), up_segment_hops.begin(), up_segment_hops.end());
-        tmp.push_back(down_segment_info);
-        tmp.insert(tmp.end(), down_segment_hops.begin(), down_segment_hops.end());
-        if (index >= tmp.size())
-            return NULL;
-        else
-            return tmp[index];
+        // vector<TYPE> tmp = {up_segment_info};
+        // tmp.reserve(2 + up_segment_hops.size() + down_segment_hops.size());
+        // tmp.insert(tmp.end(), up_segment_hops.begin(), up_segment_hops.end());
+        // tmp.push_back(down_segment_info);
+        // tmp.insert(tmp.end(), down_segment_hops.begin(), down_segment_hops.end());
+        // if (index >= tmp.size())
+        //     return NULL;
+        // else
+        //     return tmp[index];
+        return NULL;
     }
 
-    string __str__() {}
+    string __str__() { return ""; }
 
     string __repr__() {
         return __str__();

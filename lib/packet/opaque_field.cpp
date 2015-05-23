@@ -99,12 +99,12 @@ public:
     }
 
     // TODO test: one __eq__ breaks router when two SOFs in a path are identical
-    bool __eq__(OpaqueField other) {
+    bool operator==(OpaqueField &other) {
         return (strcmp(other.raw, raw) == 0);
     }
 
-    bool __ne__(OpaqueField other) {
-        return !__eq__(other);
+    bool operator!=(OpaqueField &other) {
+        return !(*this == other);
     }
 };
 
@@ -121,6 +121,7 @@ class HopOpaqueField : public OpaqueField {
     int ingress_if;
     int egress_if;
     int mac;
+public:
     HopOpaqueField(char *raw) : OpaqueField() {
         exp_time = 0;
         ingress_if = 0;
@@ -177,7 +178,7 @@ class HopOpaqueField : public OpaqueField {
         return res;
     }
 
-    bool __eq__(HopOpaqueField other) {
+    bool operator==(HopOpaqueField &other) {
         return (exp_time == other.exp_time &&
                 ingress_if == other.ingress_if &&
                 egress_if == other.egress_if &&
@@ -204,9 +205,9 @@ class InfoOpaqueField : public OpaqueField {
     int timestamp;
     int isd_id;
     int hops;
-    bool up_flag;
     char *raw;
-
+public:
+    bool up_flag;
     InfoOpaqueField(char *raw) : OpaqueField() {
         timestamp = 0;
         isd_id = 0;
@@ -282,7 +283,7 @@ class InfoOpaqueField : public OpaqueField {
         return "";
     }
 
-    bool __eq__(InfoOpaqueField other) {
+    bool operator==(InfoOpaqueField &other) {
         return (this->info == other.info &&
                 this->up_flag == other.up_flag &&
                 this->timestamp == other.timestamp &&
@@ -302,7 +303,7 @@ class TRCField : public OpaqueField {
     int trc_version;
     int if_id;
     int reserved;
-
+public:
     TRCField(char *raw) : OpaqueField() {
         info = OpaqueFieldType::TRC_OF;
         trc_version = 0;
@@ -366,7 +367,7 @@ class TRCField : public OpaqueField {
         return "";
     }
 
-    bool __eq__(TRCField other) {
+    bool operator==(TRCField &other) {
         return (this->info == other.info &&
                 this->trc_version == other.trc_version &&
                 this->if_id == other.if_id);
@@ -383,7 +384,7 @@ class SupportSignatureField : public OpaqueField {
     int cert_chain_version;
     int sig_len;
     int block_size;
-
+public:
     SupportSignatureField() : OpaqueField() {
         cert_chain_version = 0;
         sig_len = 0;
@@ -448,7 +449,7 @@ class SupportSignatureField : public OpaqueField {
         return "";
     }
 
-    bool __eq__(SupportSignatureField other) {
+    bool operator==(SupportSignatureField &other) {
         return (cert_chain_version == other.cert_chain_version &&
                 sig_len == other.sig_len &&
                 block_size == other.block_size);
@@ -468,6 +469,7 @@ class SupportPeerField: public OpaqueField {
     int bwalloc_r;
     int bw_class;
     int reserved;
+public:
     SupportPeerField(char *raw) : OpaqueField() {
         isd_id = 0;
         bwalloc_f = 0;
@@ -542,7 +544,7 @@ class SupportPeerField: public OpaqueField {
         return "";
     }
 
-    bool __eq__(SupportPeerField other) {
+    bool operator==(SupportPeerField &other) {
         return (isd_id == other.isd_id &&
                 bwalloc_f == other.bwalloc_f &&
                 bwalloc_r == other.bwalloc_r &&
@@ -567,6 +569,7 @@ class SupportPCBField : public OpaqueField {
     int dyn_bwalloc_r;
     int bebw_f;
     int bebw_r;
+public:
     SupportPCBField(char *raw) : OpaqueField() {
         isd_id = 0;
         bwalloc_f = 0;
@@ -650,7 +653,7 @@ class SupportPCBField : public OpaqueField {
         return "";
     }
 
-    bool __eq__(SupportPCBField other) {
+    bool operator==(SupportPCBField &other) {
         return (isd_id == other.isd_id &&
                 bwalloc_f == other.bwalloc_f &&
                 bwalloc_r == other.bwalloc_r &&
