@@ -17,102 +17,119 @@
  * ===========================================
  */
 
-# Stdlib
-import logging
+#include <string>
+#include "packet_base.cpp"
 
-# External packages
-import bitstring
-from bitstring import BitArray
+class ExtensionHeader : public HeaderBase {
+    /**
+     * Base class for extension headers.
+     * 
+     * For each extension header there should be a subclass of this class (e.g
+     * StrideExtensionHeader).
+     */
+public:
+    static const int MIN_LEN = 2;
+    int next_ext;
+    uint32_t hdr_len;
+    
+    ExtensionHeader() : HeaderBase() {
+        next_ext = 0;
+        hdr_len = 0;
+    }
 
-# SCION
-from lib.packet.packet_base import HeaderBase
+    ExtensionHeader(char *raw) : HeaderBase() {
+        next_ext = 0;
+        hdr_len = 0;
+        if (raw)
+            parse(raw);
+    }
+
+    void parse(char *raw) {
+        int dlen = strlen(raw);
+        if (dlen < ExtensionHeader::MIN_LEN) {
+            // logging.warning("Data too short to parse extension hdr: "
+                            // "data len %u", dlen)
+            return;
+        }
+        BitArray bits(raw);
+        next_ext = bits.get_subarray(0, 8);
+        hdr_len = bits.get_subarray(8, 8);
+        parsed = true;
+    }
+
+    BitArray pack() {
+        BitArray res;
+        res.append(next_ext, 8);
+        res.append(hdr_len, 8);
+        return res;
+    }
+
+    int __len__() {
+        return 8;
+    }
+
+    string __str__() {
+        return "[EH next hdr: " + to_string(next_ext) 
+               + ", len: " + to_string(hdr_len) + "]";
+    }
+};
 
 
-class ExtensionHeader(HeaderBase):
-    """
-    Base class for extension headers.
+class ICNExtHdr : public ExtensionHeader {
+    /**
+     * The extension header for the SCION ICN extension.
+     * 
+     * 0          8         16      24                                           64
+     * | next hdr | hdr len |  type  |                reserved                    |
+     */
+public:
+    static const int MIN_LEN = 8;
+    static const int TYPE = 220;  // Extension header type
+    int fwd_flag;
+    ICNExtHdr(char *raw) : ExtensionHeader() {
+        // Tells the edge router whether to forward this pkt
+        // to the local Content Cache or to the next AD.
+        fwd_flag = 0;
+//         self.src_addr_len = 0  // src addr len (6 bits)
+//         self.dst_addr_len = 0  // dst addr len (6 bits)
+//         self.cid = 0  // Content ID (20 bytes)
+//         self.src_addr = None  // src address (4, 8 or 20 bytes)
+//         self.dst_addr = None  // dst address (4, 8 or 20 bytes)
+        if (raw)
+            parse(raw);
+    }
 
-    For each extension header there should be a subclass of this class (e.g
-    StrideExtensionHeader).
-    """
+    void parse(char *raw) {
+        int dlen = strlen(raw);
+        if (dlen < ExtensionHeader::MIN_LEN) {
+            // logging.warning("Data too short to parse ICN extension hdr: "
+                            // "data len %u", dlen)
+            return;
+        }
+        BitArray bits(raw);
+        next_ext = bits.get_subarray(0, 8);
+        hdr_len = bits.get_subarray(8, 8);
+        fwd_flag = bits.get_subarray(16, 8);
+        int rsvd = bits.get_subarray(24, 40);
+        parsed = true;
+    }
 
-    MIN_LEN = 2
+    BitArray pack() {
+        BitArray res;
+        res.append(next_ext, 8);
+        res.append(hdr_len, 8);
+        res.append(fwd_flag, 8);
+        res.append(0, 40);
+        return res;
+    }
 
-    def __init__(self, raw=None):
-        HeaderBase.__init__(self)
-        self.next_ext = 0
-        self.hdr_len = 0
-        if raw is not None:
-            self.parse(raw)
+    int __len__() {
+        return ICNExtHdr::MIN_LEN;
+    }
 
-    def parse(self, raw):
-        assert isinstance(raw, bytes)
-        dlen = len(raw)
-        if dlen < ExtensionHeader.MIN_LEN:
-            logging.warning("Data too short to parse extension hdr: "
-                            "data len %u", dlen)
-            return
-        bits = BitArray(bytes=raw)
-        self.next_ext, self.hdr_len = bits.unpack("uintbe:8, uintbe:8")
-        self.parsed = True
-
-    def pack(self):
-        return bitstring.pack("uintbe:8, uintbe:8",
-                              self.next_ext, self.hdr_len).bytes
-
-    def __len__(self):
-        return 8
-
-    def __str__(self):
-        return "[EH next hdr: %u, len: %u]" % (self.next_ext, self.hdr_len)
-
-
-class ICNExtHdr(ExtensionHeader):
-    """
-    The extension header for the SCION ICN extension.
-
-    0          8         16      24                                           64
-    | next hdr | hdr len |  type  |                reserved                    |
-    """
-
-    MIN_LEN = 8
-    TYPE = 220  # Extension header type
-
-    def __init__(self, raw=None):
-        ExtensionHeader.__init__(self)
-        # Tells the edge router whether to forward this pkt
-        # to the local Content Cache or to the next AD.
-        self.fwd_flag = 0
-#         self.src_addr_len = 0  # src addr len (6 bits)
-#         self.dst_addr_len = 0  # dst addr len (6 bits)
-#         self.cid = 0  # Content ID (20 bytes)
-#         self.src_addr = None  # src address (4, 8 or 20 bytes)
-#         self.dst_addr = None  # dst address (4, 8 or 20 bytes)
-
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        assert isinstance(raw, bytes)
-        dlen = len(raw)
-        if dlen < ExtensionHeader.MIN_LEN:
-            logging.warning("Data too short to parse ICN extension hdr: "
-                            "data len %u", dlen)
-            return
-        bits = BitArray(bytes=raw)
-        (self.next_ext, self.hdr_len, self.fwd_flag, _rsvd) = \
-            bits.unpack("uintbe:8, uintbe:8, uintbe:8, uintbe:40")
-        self.parsed = True
-        return
-
-    def pack(self):
-        return bitstring.pack("uintbe:8, uintbe:8, uintbe:8, uintbe:40",
-                              self.next_ext, self.hdr_len,
-                              self.fwd_flag, 0).bytes
-
-    def __len__(self):
-        return ICNExtHdr.MIN_LEN
-
-    def __str__(self):
-        return ("[ICN EH next hdr: %u, len: %u, fwd_flag: %u]" %
-                (self.next_ext, self.hdr_len, self.fwd_flag))
+    string __str__() {
+        return "[ICN EH next hdr: " + to_string(next_ext) + ", len: " 
+               + to_string(hdr_len) + ", fwd_flag: " 
+               + to_string(fwd_flag) + "]";
+    }
+};

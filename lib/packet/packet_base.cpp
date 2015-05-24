@@ -18,6 +18,8 @@
  */
 #include <string>
 #include <cstring>
+#include "BitArray.h"
+
 using namespace std;
 
 class HeaderBase {
@@ -28,6 +30,7 @@ class HeaderBase {
      * :ivar parsed: whether or not the header has been parsed.
      * :vartype parsed: bool
      */
+ public:
     bool parsed;
     HeaderBase() {
         parsed = false;
@@ -37,7 +40,7 @@ class HeaderBase {
         return;
     }
     
-    virtual void pack() {}
+    virtual BitArray pack() {}
 
 public:
     virtual int __len__() {}

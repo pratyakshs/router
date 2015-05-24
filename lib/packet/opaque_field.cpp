@@ -108,8 +108,20 @@ public:
     }
 };
 
+class CommonOpaqueField : public OpaqueField {
+public:
+    int exp_time;
+    int ingress_if;
+    int egress_if;
+    int mac;
+    int timestamp;
+    int isd_id;
+    int hops;
+    bool up_flag;
+    CommonOpaqueField() : OpaqueField() {}
+};
 
-class HopOpaqueField : public OpaqueField {
+class HopOpaqueField : public CommonOpaqueField {
     /**
      * Opaque field for a hop in a path of the SCION packet header.
      * 
@@ -117,12 +129,8 @@ class HopOpaqueField : public OpaqueField {
      * ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
      * the opaque field.
      */
-    int exp_time;
-    int ingress_if;
-    int egress_if;
-    int mac;
 public:
-    HopOpaqueField(char *raw) : OpaqueField() {
+    HopOpaqueField(char *raw) : CommonOpaqueField() {
         exp_time = 0;
         ingress_if = 0;
         egress_if = 0;
@@ -194,7 +202,8 @@ public:
     }
 };
 
-class InfoOpaqueField : public OpaqueField {
+
+class InfoOpaqueField : public CommonOpaqueField {
     /**
      * Class for the info opaque field.
      * 
@@ -202,13 +211,8 @@ class InfoOpaqueField : public OpaqueField {
      * a creation timestamp (4 bytes), the ISD ID (2 byte) and # hops for this
      * segment (1 byte).
      */
-    int timestamp;
-    int isd_id;
-    int hops;
-    char *raw;
-public:
-    bool up_flag;
-    InfoOpaqueField(char *raw) : OpaqueField() {
+public:  
+    InfoOpaqueField(char *raw) : CommonOpaqueField() {
         timestamp = 0;
         isd_id = 0;
         hops = 0;

@@ -206,7 +206,7 @@ class SCIONHeader : public HeaderBase {
     SCIONAddr src_addr;
     SCIONAddr dst_addr;
     PathBase path;
-    vector<type> _extension_hdrs;
+    vector<type> extension_hdrs;
     bool path_set;
 
 public:
@@ -252,12 +252,12 @@ public:
             common_hdr.total_len += path_len;
     }
 
-    @property
-    def extension_hdrs(self):
-        """
-        Returns the extension headers.
-        """
-        return self._extension_hdrs
+    vector<> get_extension_hdrs() {
+        /**
+         * Returns the extension headers.
+         */
+        return extension_hdrs;
+    }
 
     @extension_hdrs.setter
     def extension_hdrs(self, ext_hdrs):

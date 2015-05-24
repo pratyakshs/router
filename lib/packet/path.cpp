@@ -91,20 +91,18 @@ public:
         else return NULL;
     }
 
-    HopOpaqueField* get_of(int index) {
+    CommonOpaqueField* get_of(int index) {
         /**
          * Returns the opaque field for the given index.
-         */   
-        // Build temporary flat list of opaque fields.
-        // vector<TYPE> tmp = {up_segment_info};
-        // tmp.reserve(2 + up_segment_hops.size() + down_segment_hops.size());
-        // tmp.insert(tmp.end(), up_segment_hops.begin(), up_segment_hops.end());
-        // tmp.push_back(down_segment_info);
-        // tmp.insert(tmp.end(), down_segment_hops.begin(), down_segment_hops.end());
-        // if (index >= tmp.size())
-        //     return NULL;
-        // else
-        //     return tmp[index];
+         */
+        if (index == 0)
+            return &up_segment_info;
+        if (index <= up_segment_hops.size())
+            return &up_segment_hops[index-1];
+        if (index == up_segment_hops.size() + 1)
+            return &down_segment_info;
+        if (index <= up_segment_hops.size() + 1 + down_segment_hops.size())
+            return &down_segment_hops[index - 2 - up_segment_hops.size()];
         return NULL;
     }
 
