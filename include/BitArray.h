@@ -30,8 +30,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <bitset>
-
-using namespace std;
+#include <assert.h>
 
 class BitArray {
 	/**
@@ -41,15 +40,15 @@ class BitArray {
 	 */
 public:
 	uint32_t _length;
-	vector<bool> array;
-	BitArray(char *raw) {
+	std::vector<bool> array;
+	BitArray(const std::string &raw) {
 		/**
-		 * Constructor - from char array
+		 * Constructor - from std::string
 		 */
-		int len = strlen(raw);
-		bitset<8> c;
+		int len = raw.length();
+		std::bitset<8> c;
 		for(int i = 0; i < len; i++) {
-			c = bitset<8>(raw[i]);
+			c = std::bitset<8>(raw[i]);
 			for(int j = 0; j < 8; j++) 
 				array.push_back(c[j]);
 		}
@@ -72,11 +71,11 @@ public:
 		 * return type: unsigned long long
 		 */
 		if (len > 64) {
-			cerr << "Cannot return more than 64 bits" << endl;
+			std::cerr << "Cannot return more than 64 bits" << std::endl;
 			exit(-1);
 		}
 
-		bitset<64> res;
+		std::bitset<64> res;
 		for(int i = 0; i < len; i++) {
 			res[63-i] = array[pos+i]; 
 		}
@@ -88,17 +87,17 @@ public:
 		 * Append lowest `len` bits from `val` to `array`
 		 */
 		if (len > 64) {
-			cerr << "Cannot append more than 64 bits" << endl;
+			std::cerr << "Cannot append more than 64 bits" << std::endl;
 			exit(-1);
 		}
 
-		bitset<64> _val(val);
+		std::bitset<64> _val(val);
 		for(int i = len-1; i >= 0; i++) 
 			array.push_back(_val[i]);
 		_length += len;
 	}
 
-	vector<bool> get_vector() {
+	std::vector<bool> get_vector() {
 		return array;
 	}
 
@@ -119,12 +118,12 @@ public:
 		return res;
 	}
 
-	string get_string() {
-		string s;
+	std::string get_string() {
+		std::string s;
 		assert(!(array.size() & 0x8)); // number of bits must be multiple of 8
 		int len = array.size() >> 3;
 		for(int i = 0; i < len; i++) {
-			bitset<8> bits;
+			std::bitset<8> bits;
 			for(int j = 0; j < 8; j++) 
 				bits[j] = array[i*8+j];
 			s.push_back((char)bits.to_ulong());

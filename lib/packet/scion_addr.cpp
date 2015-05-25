@@ -23,37 +23,38 @@
  *     Fill in the docstring.
  */
 
-// from bitstring import BitArray
-// import bitstring
-// from collections import namedtuple
-// from ipaddress import IPv4Address, IPv6Address, IPV4LENGTH, IPV6LENGTH
-// import logging
-// import socket
-// import struct
+#ifndef SCION_ADDR_CPP
+#define SCION_ADDR_CPP
 
 #include <stdint.h>
-#include <string.h>
 #include "IPAddress.h"
 
 // ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
 // figure out an alternative
 
-
 class SCIONAddr {
     /* Class for complete SCION addresses.
      */
-    static const int ISD_AD_LEN = 10;  // Size of (isd_id, ad_id) pair in bytes.
+public:
     uint16_t isd_id;
     uint64_t ad_id;
     int addr_len;
     IPAddress *host_addr;
+    static const int ISD_AD_LEN = 10;  // Size of (isd_id, ad_id) pair in bytes.
 
-    SCIONAddr(char *raw) {
+    SCIONAddr() {
         isd_id = 0;
         ad_id = 0;
         host_addr = NULL;
         addr_len = 0;
-        if (raw)
+    }
+
+    SCIONAddr(const std::string &raw) {
+        isd_id = 0;
+        ad_id = 0;
+        host_addr = NULL;
+        addr_len = 0;
+        if (raw.length())
             parse(raw);
     }
 
@@ -70,9 +71,9 @@ class SCIONAddr {
         addr_len = ISD_AD_LEN + host_addr_len;
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         // assert isinstance(raw, bytes)
-        addr_len = strlen(raw);
+        addr_len = raw.length();
         if (addr_len < ISD_AD_LEN) {
             // logging.warning("SCIONAddr: Data too short for parsing, len: %u",
             //                  addr_len)
@@ -106,7 +107,7 @@ class SCIONAddr {
         //                        self.ad_id).bytes + self.host_addr.packed)
     }
 
-    string __str__(){
+    std::string __str__(){
         std::cerr << "__str__ function unimplemented" << std::endl;
         exit(-1);
         return "";
@@ -122,3 +123,5 @@ class SCIONAddr {
     }
 
 };
+
+#endif

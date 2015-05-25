@@ -16,13 +16,11 @@
 /* :mod:`packet_base` --- Packet base class
  * ===========================================
  */
-#pragma once
+#ifndef PACKET_BASE_CPP
+#define PACKET_BASE_CPP
 
 #include <string>
-#include <cstring>
 #include "BitArray.h"
-
-using namespace std;
 
 class HeaderBase {
     /* Base class for headers.
@@ -38,18 +36,18 @@ class HeaderBase {
         parsed = false;
     }
 
-    void parse(char *raw){
+    void parse(const std::string &raw){
         return;
     }
     
     virtual BitArray pack() {}
 
 public:
-    virtual int __len__() {}
+    virtual int length() {}
 
-    virtual string __str__() {}
+    virtual std::string __str__() {}
 
-    virtual string __repr__() {
+    virtual std::string __repr__() {
         return __str__();
     }
 };
@@ -64,25 +62,25 @@ class PacketBase {
      * :ivar hdr: the packet header.
      * :vartype hdr: :class:`HeaderBase`
      * :ivar payload: the packet payload
-     * :vartype payload: :class:`PacketBase` or bytes
+     * :vartype payload: std::string
      */
     HeaderBase *hdr;
-    PacketBase *payload;
+    std::string payload;
 public:
     bool parsed;
-    char *raw;
+    std::string raw;
     PacketBase() {
         parsed = false;
-        raw = NULL;
+        raw = "";
     }
 
-    PacketBase get_payload() {
+    std::string get_payload() {
         /* Returns the packet payload.
          */
-        return *payload;
+        return payload;
     }
 
-    void set_payload(PacketBase *new_payload) {
+    void set_payload(const std::string &new_payload) {
         /* Set the packet payload.  Expects bytes or a Packet subclass.
          */
         // if (not isinstance(new_payload, PacketBase) and
@@ -105,7 +103,7 @@ public:
         hdr = new_hdr;
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         // pass
     }
 
@@ -113,15 +111,15 @@ public:
         // pass
     }
 
-    int __len__() {
-        return hdr->__len__() + payload->__len__();
+    int length() {
+        return hdr->length() + payload.length();
     }
 
-    string __str__() {
-        return hdr->__str__() + "\n" + "Payload:\n" + payload->__str__();
+    std::string __str__() {
+        return hdr->__str__() + "\n" + "Payload:\n" + payload;
     }
 
-    string __repr__() {
+    std::string __repr__() {
         return __str__();
     }
 
@@ -130,8 +128,8 @@ public:
         return 0;
     }
 
-    bool __eq__(PacketBase other) {
-        return strcmp(raw, other.raw) == 0;
+    bool operator==(PacketBase &other) {
+        return raw == other.raw;
     }
 };
 
@@ -139,24 +137,24 @@ class PayloadBase {
     /* Interface that payloads of packets must implement.
      */
 public:
-    char *raw;
+    std::string raw;
     bool parsed;
 
     PayloadBase() {
-        raw = NULL;
+        raw = "";
         parsed = false;
     }
 
-    void parse(char *raw) {
-        strcpy(this->raw, raw);
+    void parse(const std::string &raw) {
+        this->raw = raw;
     }
 
-    char* pack() {
+    std::string pack() {
         return raw;
     }
 
-    int __len__() {
-        return strlen(raw);
+    int length() {
+        return raw.length();
     }
 
     long long __hash__() {
@@ -165,6 +163,8 @@ public:
     }
 
     bool operator==(PayloadBase &other) {
-        return strcmp(raw, other.raw) == 0;
+        return raw == other.raw;
     }
 };
+
+#endif

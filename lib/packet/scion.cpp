@@ -7,7 +7,7 @@
  * 
  *   http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Unless required by applicable law or agreed to in writing, software
+ * Unless required by applicable law or agreed to in writing, sOpaqueFieldTypeware
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
@@ -16,6 +16,8 @@
 /* :mod:`scion` --- SCION packets
  * ===========================================
  */
+#ifndef SCION_CPP
+#define SCION_CPP
 
 #include <vector>
 #include <cstdlib>
@@ -32,6 +34,7 @@ class PacketType {
     /*
      * Defines constants for the SCION packet types.
      */
+ public:
     static const int DATA = -1;  // Data packet
     static const IPv4Address BEACON ; // Path Construction Beacon
     static const IPv4Address PATH_MGMT;  // Path management packet from/to PS
@@ -46,43 +49,57 @@ class PacketType {
     static const vector<IPv4Address> DST;
 };
 
-const IPv4Address PacketType::BEACON = IPv4Address("10.224.0.1");  // Path Construction Beacon
-const IPv4Address PacketType::PATH_MGMT = IPv4Address("10.224.0.2");  // Path management packet from/to PS
-const IPv4Address PacketType::TRC_REQ = IPv4Address("10.224.0.3");  // TRC file request to parent AD
-const IPv4Address PacketType::TRC_REQ_LOCAL = IPv4Address("10.224.0.4");  // TRC file request to lCS
-const IPv4Address PacketType::TRC_REP = IPv4Address("10.224.0.5");  // TRC file reply from parent AD
-const IPv4Address PacketType::CERT_CHAIN_REQ = IPv4Address("10.224.0.6");  // cert chain request to parent AD
-const IPv4Address PacketType::CERT_CHAIN_REQ_LOCAL = IPv4Address("10.224.0.7");  // local cert chain request
-const IPv4Address PacketType::CERT_CHAIN_REP = IPv4Address("10.224.0.8");  // cert chain reply from lCS
-const IPv4Address PacketType::IFID_PKT = IPv4Address("10.224.0.9");  // IF ID packet to the peer router
-const vector<IPv4Address> PacketType::SRC = {BEACON, PATH_MGMT, CERT_CHAIN_REP, TRC_REP};
-const vector<IPv4Address> PacketType::DST = {PATH_MGMT, TRC_REQ, TRC_REQ_LOCAL, CERT_CHAIN_REQ,
-    CERT_CHAIN_REQ_LOCAL, IFID_PKT};
+const IPv4Address PacketType::BEACON = IPv4Address("10.224.0.1");
+const IPv4Address PacketType::PATH_MGMT = IPv4Address("10.224.0.2");
+const IPv4Address PacketType::TRC_REQ = IPv4Address("10.224.0.3");
+const IPv4Address PacketType::TRC_REQ_LOCAL = IPv4Address("10.224.0.4");
+const IPv4Address PacketType::TRC_REP = IPv4Address("10.224.0.5");
+const IPv4Address PacketType::CERT_CHAIN_REQ = IPv4Address("10.224.0.6");
+const IPv4Address PacketType::CERT_CHAIN_REQ_LOCAL = IPv4Address("10.224.0.7");
+const IPv4Address PacketType::CERT_CHAIN_REP = IPv4Address("10.224.0.8");
+const IPv4Address PacketType::IFID_PKT = IPv4Address("10.224.0.9");
+const vector<IPv4Address> PacketType::SRC = {BEACON, PATH_MGMT, 
+                                             CERT_CHAIN_REP, TRC_REP};
+const vector<IPv4Address> PacketType::DST = {PATH_MGMT, TRC_REQ, 
+                                             TRC_REQ_LOCAL, CERT_CHAIN_REQ,
+                                             CERT_CHAIN_REQ_LOCAL, IFID_PKT};
 
 class SCIONCommonHdr : public HeaderBase {
     /* Encapsulates the common header for SCION packets.
      */
-    static const LEN = 8;
-    int version;
-    uint32_t src_addr_len;
-    uint32_t dst_addr_len;
-    uint32_t total_len;
-    int curr_iof_p;
-    int curr_of_p;
-    int next_hdr;
-    uint32_t hdr_len;
+    int version; // Version of SCION packet.
+    int curr_iof_p; // Pointer inside the packet to the current IOF.
+    int curr_of_p; // Pointer to the current opaque field.
+    int next_hdr; // Type of the next hdr field (IP protocol numbers).
+    
+public:
+    static const int LEN = 8;
+    uint32_t src_addr_len; // Length of the src address.
+    uint32_t dst_addr_len; // Length of the dst address.
+    uint32_t hdr_len; // Header length including the path.
+    uint32_t total_len; // Total length of the packet.
 
-    SCIONCommonHdr(char *raw) :  HeaderBase() {
-        version = 0;  // Version of SCION packet.
-        src_addr_len = 0;  // Length of the src address.
-        dst_addr_len = 0;  // Length of the dst address.
-        total_len = 0;  // Total length of the packet.
-        curr_iof_p = 0;  // Pointer inside the packet to the current IOF.
-        curr_of_p = 0;  // Pointer to the current opaque field.
-        next_hdr = 0;  // Type of the next hdr field (IP protocol numbers).
-        hdr_len = 0;  // Header length including the path.
+    SCIONCommonHdr() : HeaderBase() {
+        version = 0;
+        src_addr_len = 0;
+        dst_addr_len = 0;
+        total_len = 0;
+        curr_iof_p = 0;
+        curr_of_p = 0;
+        next_hdr = 0;
+        hdr_len = 0;
+    }
 
-        if (raw)
+    SCIONCommonHdr(const std::string &raw) :  HeaderBase() {
+        version = 0;
+        src_addr_len = 0;
+        dst_addr_len = 0;
+        total_len = 0;
+        curr_iof_p = 0;
+        curr_of_p = 0;
+        next_hdr = 0;
+        hdr_len = 0;
+        if (raw.length())
             parse(raw);
     }
 
@@ -99,11 +116,11 @@ class SCIONCommonHdr : public HeaderBase {
         this->total_len = this->hdr_len;
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         /**
          * Parses the raw data and populates the fields accordingly.
          */
-        int dlen = strlen(raw);
+        int dlen = raw.length();
         if (dlen < SCIONCommonHdr::LEN) {
             // logging.warning("Data too short to parse SCION common header: "
             // "data len %u", dlen)
@@ -126,7 +143,7 @@ class SCIONCommonHdr : public HeaderBase {
         /**
          * Returns the common header as 8 byte binary string.
          */
-        types = ((version << 12) | (dst_addr_len << 6) |
+        uint64_t types = ((version << 12) | (dst_addr_len << 6) |
                 src_addr_len);
 
         BitArray res;
@@ -139,7 +156,7 @@ class SCIONCommonHdr : public HeaderBase {
         return res;
     }
 
-    string __str__() {
+    std::string __str__() {
         cerr << "***UNIMPLEMENTED***" << endl;
         exit(-1);
         // res = ("[CH ver: %u, src len: %u, dst len: %u, total len: %u bytes, "
@@ -164,13 +181,13 @@ class SCIONHeader : public HeaderBase {
     bool path_set;
 
 public:
-    SCIONHeader(char *raw) : HeaderBase() {
-        if (raw)
+    SCIONHeader(const std::string &raw) : HeaderBase() {
+        if (raw.length())
             parse(raw);
     }
 
     SCIONHeader(SCIONAddr src, SCIONAddr dst, PathBase path, 
-                vector<type> ext_hdrs, int next_hdr=0) {
+                vector<ExtensionHeader> ext_hdrs, int next_hdr=0) {
         /**
          * Constructor with the values specified.
          */
@@ -195,15 +212,16 @@ public:
          * Sets path to 'path' and updates necessary fields..
          */
         if (path_set) {
-            int path_len = path.pack() {:LENgth();
+            int path_len = path.pack().length();
             common_hdr.hdr_len -= path_len;
             common_hdr.total_len -= path_len;
         }
         this->path = path;
-        if path is not None:
-            path_len = len(path.pack());
+        if (true) {// check if path is not none
+            int path_len = path.pack().length();
             common_hdr.hdr_len += path_len;
             common_hdr.total_len += path_len;
+        }
     }
 
     vector<ExtensionHeader> get_extension_hdrs() {
@@ -217,10 +235,11 @@ public:
         /**
          * Sets extension headers and updates necessary fields.
          */
-        while _extension_hdrs:
-            pop_ext_hdr()
-        for ext_hdr in ext_hdrs:
-            append_ext_hdr(ext_hdr)
+        ///? can use std::vector::clear() too!
+        while (!extension_hdrs.empty())
+            pop_ext_hdr();
+        for (int i = 0; i < ext_hdrs.size(); i++)
+            append_ext_hdr(ext_hdrs[i]);
     }
 
     void append_ext_hdr(ExtensionHeader ext_hdr) {
@@ -228,61 +247,60 @@ public:
          * Appends an extension header and updates necessary fields.
          */
         extension_hdrs.push_back(ext_hdr);
-        common_hdr.total_len += ext_hdr.__len__();
+        common_hdr.total_len += ext_hdr.length();
     }
 
     ExtensionHeader pop_ext_hdr() {
         /**
-         * Pops and returns the last extension header and updates necessary fields.
+         * Pops and returns the last extension header and 
+         * updates necessary fields.
          */
         if (extension_hdrs.empty())
             return ExtensionHeader();
         ExtensionHeader ext_hdr = extension_hdrs.back();
         extension_hdrs.pop_back();
-        common_hdr.total_len -= ext_hdr.__len__();
+        common_hdr.total_len -= ext_hdr.length();
         return ext_hdr;
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         /**
          * Parses the raw data and populates the fields accordingly.
          */
-        int dlen = strlen(raw);
+        int dlen = raw.length();
         if (dlen < SCIONHeader::MIN_LEN) {
             // logging.warning("Data too short to parse SCION header: "
                             // "data len %u", dlen)
             return;
         }
         int offset = 0;
-        string raw_str(raw);
-        common_hdr = SCIONCommonHdr(raw_str.substr(offset, 
-                                    SCIONCommonHdr::LEN).c_str());
+        common_hdr = SCIONCommonHdr(raw.substr(offset, SCIONCommonHdr::LEN));
         offset += SCIONCommonHdr::LEN;
         assert(common_hdr.parsed); 
         // Create appropriate SCIONAddr objects.
         int src_addr_len = common_hdr.src_addr_len;
-        src_addr = SCIONAddr(raw_str.substr(offset, src_addr_len).c_str());
+        src_addr = SCIONAddr(raw.substr(offset, src_addr_len));
         offset += src_addr_len;
         int dst_addr_len = common_hdr.dst_addr_len;
-        dst_addr = SCIONAddr(raw_str.substr(offset, dst_addr_len).c_str());
+        dst_addr = SCIONAddr(raw.substr(offset, dst_addr_len));
         offset += dst_addr_len;
         // Parse opaque fields.
         // PSz: UpPath-only case missing, quick fix:
         if (offset == common_hdr.hdr_len)
             path = EmptyPath();
         else {
-            info = InfoOpaqueField(raw_str.substr(offset, 
-                                   InfoOpaqueField::LEN).c_str());
-            if (info.info == OFT::TDC_XOVR)
-                path = CorePath(raw_str.substr(offset, 
-                                common_hdr.hdr_len).c_str());
-            else if (info.info == OFT::NON_TDC_XOVR)
-                path = CrossOverPath(raw_str.substr(offset, 
+            info = InfoOpaqueField(raw.substr(offset, 
+                                   InfoOpaqueField::LEN));
+            if (info.info == OpaqueFieldType::TDC_XOVR)
+                path = CorePath(raw.substr(offset, 
+                                common_hdr.hdr_len));
+            else if (info.info == OpaqueFieldType::NON_TDC_XOVR)
+                path = CrossOverPath(raw.substr(offset, 
                                      common_hdr.hdr_len));
-            else if (info.info == OFT::INTRATD_PEER
-                     || info.info == OFT::INTERTD_PEER)
-                path = PeerPath(raw_str.substr(offset, 
-                                common_hdr.hdr_len).c_str());
+            else if (info.info == OpaqueFieldType::INTRATD_PEER
+                     || info.info == OpaqueFieldType::INTERTD_PEER)
+                path = PeerPath(raw.substr(offset, 
+                                common_hdr.hdr_len));
             else{
                 // logging.info("Can not parse path in packet: Unknown type %x",
                              // info.info)
@@ -295,17 +313,17 @@ public:
         // extension headers by a 0 in the type field.
         int cur_hdr_type = common_hdr.next_hdr;
         while (cur_hdr_type != 0) {
-            BitArray bits(raw_str.substr(offset, 2).c_str());
+            BitArray bits(raw.substr(offset, 2));
             next_hdr_type = bits.get_subarray(0, 8);
             hdr_len = bits.get_subarray(8, 8);
             // logging.info("Found extension hdr of type %u with len %u",
                          // cur_hdr_type, hdr_len)
             if (cur_hdr_type == ICNExtHdr::TYPE) 
                 extension_hdrs.push_back(
-                    ICNExtHdr(raw_str.substr(offset, hdr_len).c_str()));
+                    ICNExtHdr(raw.substr(offset, hdr_len)));
             else
                 extension_hdrs.push_back(
-                    ExtensionHeader(raw_str.substr(offset, hdr_len).c_str()));
+                    ExtensionHeader(raw.substr(offset, hdr_len)));
             cur_hdr_type = next_hdr_type;
             offset += hdr_len;
         }
@@ -329,8 +347,8 @@ public:
 
     CommonOpaqueField* get_current_of() {
         /**
-         * Returns the current opaque field as pointed by the current_of field in
-         * the common_hdr.
+         * Returns the current opaque field as pointed by the 
+         * current_of field in the common_hdr.
          */
         if (false) // check if path is none
             return NULL;
@@ -341,8 +359,8 @@ public:
 
     CommonOpaqueField* get_current_iof() {
         /**
-         * Returns the Info Opaque Field as pointed by the current_iof_p field in
-         * the common_hdr.
+         * Returns the Info Opaque Field as pointed by the current_iof_p
+         *  field in the common_hdr.
          */
         if (false) // check if path is None
             return NULL;
@@ -364,8 +382,9 @@ public:
 
     CommonOpaqueField* get_next_of() {
         /*
-         * Returns the opaque field after the one pointed by the current_of field
-         * in the common hdr or 'None' if there exists no next opaque field.
+         * Returns the opaque field after the one pointed by the current_of 
+         * field in the common hdr or 'None' if there exists no next
+         * opaque field.
          */
         if (false) // check if path is None
             return NULL;
@@ -392,12 +411,12 @@ public:
 
     bool is_on_up_path() {
         /**
-         * Returns 'True' if the current opaque field should be interpreted as an
-         * up-path opaque field and 'False' otherwise.
+         * Returns 'True' if the current opaque field should be interpreted as 
+         * an up-path opaque field and 'False' otherwise.
          *
          * 
-         * Currently this is indicated by a bit in the LSB of the 'type' field in
-         * the common header.
+         * Currently this is indicated by a bit in the LSB of the 'type' field 
+         * in the common header.
          */
         CommonOpaqueField *iof = get_current_iof();
         if (iof)
@@ -428,14 +447,14 @@ public:
         common_hdr.curr_iof_p = common_hdr.curr_of_p;
     }
 
-    int __len__() {
+    int length() {
         int length = common_hdr.hdr_len;
         for (int i = 0; i < extension_hdrs.size(); i++) 
-            length += extension_hdrs[i].__len__();
+            length += extension_hdrs[i].length();
         return length;
     }
 
-    string __str__() {
+    std::string __str__() {
         // sh_list = []
         // sh_list.append(str(common_hdr) + "\n")
         // sh_list.append(str(src_addr) + " >> " + str(dst_addr) + "\n")
@@ -449,338 +468,4 @@ public:
     }
 };
 
-
-
-class SCIONPacket : public PacketBase {
-    /**
-     * Class for creating and manipulation SCION packets.
-     */
- public:
-    static const int MIN_LEN = 8;
-    int payload_len = 0;
-
-    SCIONPacket(char *raw) : PacketBase() {
-        payload_len = 0;
-        if (raw)
-            parse(raw);
-    }
-
-    SCIONPacket(SCIONAddr src, SCIONAddr dst, PacketBase *payload, PathBase path,
-                    vector<ExtensionHeader> ext_hdrs, int next_hdr = 0, 
-                    int pkt_type = PacketType::DATA) : PacketBase() {
-        /**
-         *  SCIONPacket constructor with the values specified.
-         * :param src: Source address (must be a 'SCIONAddr' object)
-         * :param dst: Destination address (must be a 'SCIONAddr' object)
-         * :param payload: Payload of the packet (either 'bytes' or 'PacketBase')
-         * :param path: The path for this packet.
-         * :param ext_hdrs: A list of extension headers.
-         * :param next_hdr: If 'ext_hdrs' is not None then this must be the type
-         *                  of the first extension header in the list.
-         * :param pkt_type: The type of the packet.
-         */
-        hdr = SCIONHeader(src, dst, path, ext_hdrs, next_hdr);
-        payload = payload;
-    }
-
-    void set_payload(PacketBase *payload) {
-        PacketBase.set_payload(payload);
-        // Update payload_len and total len of the packet.
-        hdr.common_hdr.total_len -= payload_len;
-        payload_len = payload->__len__();
-        hdr.common_hdr.total_len += payload_len;
-    }
-
-    void parse(char *raw) {
-        /**
-         * Parses the raw data and populates the fields accordingly.
-         */
-        int dlen = strlen(raw);
-        this->raw = new char[dlen];
-        strcpy(this->raw, raw);
-        if (dlen < SCIONPacket::MIN_LEN) {
-            // logging.warning("Data too short to parse SCION packet: "
-                            // "data len %u", dlen)
-            return;
-        }
-        hdr = SCIONHeader(raw);
-        hdr_len = hdr.__len__();
-        payload_len = dlen - hdr_len;
-        payload = string(raw).substr(hdr_len).c_str();
-        parsed = true;
-
-        cerr << "***UNIMPLEMENTED***" << endl;
-        exit(-1);
-    }
-
-    BitArray pack() {
-        /**
-         * Packs the header and the payload and returns a byte array.
-         */
-        return hdr.pack() + payload.pack();
-        // if isinstance(self.payload, PacketBase) {
-        //     data.append(self.payload.pack())
-        // else:
-        //     data.append(self.payload)
-    }
-};
-
-class IFIDPacket : public SCIONPacket {
-    /**
-     * IFID packet.
-     */
-    int reply_id;
-    int request_id;
-public:
-    IFIDPacket(char *raw) : SCIONPacket() {
-        reply_id = 0;  // Always 0 for initial request.
-        if (raw)
-            parse(raw);
-    }
-
-    void parse(char *raw) {
-        SCIONPacket::parse(raw);
-        reply_id = (int(payload[1]) << 8) + int(payload[0]);
-        request_id = (int(payload[3]) << 8) + int(payload[2]);
-        ///? this assumes payload is a char array.
-    }
-
-    IFIDPacket(SCIONAddr src, pair<uint16_t, uint64_t> dst_isd_ad,
-               int request_id) {
-        /**
-         * Returns a IFIDPacket with the values specified.
-         * @param src: Source address (must be a 'SCIONAddr' object)
-         * @param dst_isd_ad: Destination's 'ISD_AD' namedtuple.
-         * @param request_id: interface number of src (neighboring router).
-         */
-        this->request_id = request_id;
-        SCIONAddr dst(dst_isd_ad.first, dst_isd_ad.second, 
-                      PacketType::IFID_PKT);
-        SCIONHeader hdr(src, dst);
-        payload = new char[4];
-        payload[0] = reply_id & 0xFF;
-        payload[1] = reply_id >> 8;
-        payload[2] = request_id & 0xFF;
-        payload[3] = request_id >> 8;
-    }
-
-    BitArray pack() {
-        payload[0] = reply_id & 0xFF;
-        payload[1] = reply_id >> 8;
-        payload[2] = request_id & 0xFF;
-        payload[3] = request_id >> 8;
-        return SCIONPacket::pack();
-    }
-};
-
-class CertChainRequest : public SCIONPacket {
-    /**
-     * Certificate Chain Request packet.
-     * :ivar ingress_if: ingress interface where the beacon comes from.
-     * :type ingress_if: int
-     * :ivar src_isd: ISD identifier of the requester.
-     * :type src_isd: int
-     * :ivar src_ad: AD identifier of the requester.
-     * :type src_ad: int
-     * :ivar isd_id: Target certificate chain's ISD identifier.
-     * :type isd_id: int
-     * :ivar ad_id, ad: Target certificate chain's AD identifier.
-     * :type ad_id: int
-     * :ivar version: Target certificate chain's version.
-     * :type version: int
-     */
-    int ingress_if;
-    int src_isd;
-    int src_ad;
-    int isd_id;
-    int ad_id;
-    int version;
-public:
-    CertChainRequest(char* raw) : SCIONPacket() {
-        /**
-         * Initialize an instance of the class CertChainRequest.
-         * :param raw: packed packet.
-         * :type raw: bytes
-         * :returns: the newly created CertChainRequest instance.
-         * :rtype: :class:`CertChainRequest`
-         */
-        ingress_if = 0;
-        src_isd = 0;
-        src_ad = 0;
-        isd_id = 0;
-        ad_id = 0;
-        version = 0;
-        if (raw)
-            parse(raw);
-    }
-
-    void parse(char *raw) {
-        /**
-         * Parse a string of bytes and populate the instance variables.
-         * :param raw: packed packet.
-         * :type raw: bytes
-         */
-        SCIONPacket::parse(raw);
-        BitArray bits(payload);
-        bits = BitArray(bytes=self.payload)
-        ingress_if = bits.get_subarray(0, 16);
-        src_isd = bits.get_subarray(16, 16);
-        src_ad = bits.get_subarray(32, 64);
-        isd_id = bits.get_subarray(96, 16);
-        ad_id = bits.get_subarray(112, 64);
-        version = bits.get_subarray(176, 32);
-    }
-
-    CertChainRequest(int req_type, SCIONAddr src, int ingress_if, int src_isd,
-                     int  src_ad, int isd_id, int ad_id, 
-                     int version) : SCIONPacket() {
-        /**
-         * Return a Certificate Chain Request with the values specified.
-         * :param req_type: Either CERT_CHAIN_REQ_LOCAL (request comes from BS or
-         *                  user) or CERT_CHAIN_REQ.
-         * :type req_type: int
-         * :param src: Source address.
-         * :type src: :class:`SCIONAddr`
-         * :param ingress_if: ingress interface where the beacon comes from.
-         * :type ingress_if: int
-         * :param src_isd: ISD identifier of the requester.
-         * :type src_isd: int
-         * :param src_ad: AD identifier of the requester.
-         * :type src_ad: int
-         * :param isd_id: Target certificate chain's ISD identifier.
-         * :type isd_id: int
-         * :param ad_id, ad: Target certificate chain's AD identifier.
-         * :type ad_id: int
-         * :param version: Target certificate chain's version.
-         * :type version: int
-         * :returns: the newly created CertChainRequest instance.
-         * :rtype: :class:`CertChainRequest`
-         */
-        SCIONAddr dst(isd_id, src_ad, req_type);
-        this->hdr = SCIONHeader(src, dst);
-        this->ingress_if = ingress_if;
-        this->src_isd = src_isd;
-        this->src_ad = src_ad;
-        this->isd_id = isd_id;
-        this->ad_id = ad_id;
-        this->version = version;
-        BitArray bits;
-        bits.append(ingress_if, 16);
-        bits.append(src_isd, 16);
-        bits.append(src_ad, 64);
-        bits.append(isd_id, 16);
-        bits.append(ad_id, 64);
-        bits.append(version, 32);
-        this->payload = bits.get_string().c_str();
-    }
-};
-
-class CertChainReply : public SCIONPacket {
-    /**
-     * Certificate Chain Reply packet.
-     * :cvar MIN_LEN: minimum length of the packet.
-     * :type MIN_LEN: int
-     * :ivar isd_id: Target certificate chain's ISD identifier.
-     * :type isd_id: int
-     * :ivar ad_id: Target certificate chain's AD identifier.
-     * :type ad_id: int
-     * :ivar version: Target certificate chain's version.
-     * :type version: int
-     * :ivar cert_chain: requested certificate chain's content.
-     * :type cert_chain: bytes
-     */
-    int isd_id;
-    uint64_t ad_id;
-    int version;
-    string cert_chain;
- public:
-    static const int MIN_LEN = 14;
-
-    CertChainReply(char *raw) : SCIONPacket() {
-        /**
-         * Initialize an instance of the class CertChainReply.
-         * :param raw: packed packet.
-         * :type raw: bytes
-         * :returns: the newly created CertChainReply instance.
-         * :rtype: :class:`CertChainReply`
-         */
-        isd_id = 0;
-        ad_id = 0;
-        version = 0;
-        cert_chain = "";
-        if (raw)
-            parse(raw);
-    }
-
-    void parse(char *raw) {
-        /**
-         * Parse a string of bytes and populate the instance variables.
-         * :param raw: packed packet.
-         * :type raw: bytes
-         */
-        SCIONPacket::parse(raw);
-        BitArray bits(payload);
-        isd_id = bits.get_subarray(0, 16);
-        ad_id = bits.get_subarray(16, 64);
-        version = bits.get_subarray(80, 32);
-        cert_chain = string(payload).substr(CertChainReply::MIN_LEN);
-    }
-
-    CertChainReply(SCIONAddr dst, int isd_id, uint64_t ad_id, 
-                   int version, char *cert_chain) : SCIONPacket() {
-        /**
-         * Constructor for Certificate Chain Reply with the values specified.
-         * :param dst: Destination address.
-         * :type dst: :class:`SCIONAddr`
-         * :param isd_id: Target certificate chain's ISD identifier.
-         * :type isd_id: int
-         * :param ad_id, ad: Target certificate chain's AD identifier.
-         * :type ad_id: int
-         * :param version: Target certificate chain's version.
-         * :type version: int
-         * :param cert_chain: requested certificate chain's content.
-         * :type cert_chain: bytes
-         */
-        SCIONAddr src(isd_id, ad_id, PacketType::CERT_CHAIN_REP);
-        hdr = SCIONHeader(src, dst);
-        this->isd_id = isd_id
-        this->ad_id = ad_id
-        this->version = version
-        this->cert_chain = string(cert_chain);
-        BitArray bits;
-        bits.append(isd_id, 16);
-        bits.append(ad_id, 64);
-        bits.append(version, 32);
-        strcpy(payload, bits.get_string + string(cert_chain));
-    }
-};
-
-class TRCRequest : public SCIONPacket {
-    /**
-     * TRC Request packet.
-     * :ivar ingress_if: ingress interface where the beacon comes from.
-     * :type ingress_if: int
-     * :ivar src_isd: ISD identifier of the requester.
-     * :type src_isd: int
-     * :ivar src_ad: AD identifier of the requester.
-     * :type src_ad: int
-     * :ivar isd_id: Target TRC's ISD identifier.
-     * :type isd_id: int
-     * :ivar version: Target TRC's version.
-     * :type version: int
-     */
-    int ingress_if;
-    int src_isd;
-    int src_ad;
-    int isd_id;
-    int version;
-public:
-    TRCRequest(char *raw) : SCIONPacket() {
-        /**
-         * Initialize an instance of the class TRCRequest.
-         * :param raw: packed packet.
-         * :type raw: bytes
-         */
-    }
-};
-
+#endif

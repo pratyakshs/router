@@ -16,6 +16,8 @@
 /* :mod:`path` --- SCION Path packets
  * ===========================================
  */
+#ifndef PATH_CPP
+#define PATH_CPP
 
 #include "opaque_field.cpp"
 #include <algorithm>
@@ -30,16 +32,16 @@ class PathBase {
      */
 protected:
     InfoOpaqueField up_segment_info;
-    vector<HopOpaqueField> up_segment_hops;
+    std::vector<HopOpaqueField> up_segment_hops;
     InfoOpaqueField down_segment_info;
-    vector<HopOpaqueField> down_segment_hops;
+    std::vector<HopOpaqueField> down_segment_hops;
     bool parsed;
 public:
     PathBase() {
         parsed = false;
     }
 
-    void parse(char *raw) {}
+    void parse(const std::string &raw) {}
 
     BitArray pack() {}
 
@@ -48,7 +50,7 @@ public:
          * Reverses the segment.
          */
         // Swap down segment and up segment.
-        vector<HopOpaqueField> temp_hops = up_segment_hops;
+        std::vector<HopOpaqueField> temp_hops = up_segment_hops;
         up_segment_hops = down_segment_hops;
         down_segment_hops = temp_hops;
 
@@ -106,9 +108,9 @@ public:
         return NULL;
     }
 
-    string __str__() { return ""; }
+    std::string __str__() { return ""; }
 
-    string __repr__() {
+    std::string __repr__() {
         return __str__();
     }
 };
@@ -481,48 +483,56 @@ class PeerPath(PathBase):
         s.append("</Down-Segment>\n</Peer-Path>")
 
         return "".join(s)
+*/
 
+class EmptyPath : public PathBase {
+    /**
+     * Represents an empty path.
+     * 
+     * This is currently needed for intra AD communication, which doesn't need a
+     * SCION path but still uses SCION packets for communication.
+     */
+public:
+    EmptyPath() : PathBase() {}
+    
+    EmptyPath(const std::string &raw) : PathBase() {
+        if (raw.length())
+            parse(raw);
+    }
 
-class EmptyPath(PathBase):
-    """
-    Represents an empty path.
-
-    This is currently needed for intra AD communication, which doesn't need a
-    SCION path but still uses SCION packets for communication.
-    """
-    def __init__(raw=None):
-        PathBase.__init__()
-
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(raw):
-        assert isinstance(raw, bytes)
-        self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
+    void parse(const std::string &raw) {
+        up_segment_info = InfoOpaqueField(raw.substr(0, InfoOpaqueField::LEN));
         // We do this so we can still reverse the segment.
-        self.down_segment_info = self.up_segment_info
+        down_segment_info = up_segment_info;
+        parsed = true;
+    }
 
-        self.parsed = True
+    BitArray pack(){
+        return BitArray();
+    }
 
-    def pack():
-        return b''
+    bool is_first_hop(HopOpaqueField hop) {
+        return true;
+    }
 
-    def is_first_hop(hop):
-        return True
+    bool is_last_hop(HopOpaqueField hop) {
+        return true;
+    }
 
-    def is_last_hop(hop):
-        return True
+    HopOpaqueField* get_first_hop_of() {
+        return NULL;
+    }
 
-    def get_first_hop_of():
-        return None
+    CommonOpaqueField* get_of(int index) {
+        return &up_segment_info;
+    }
 
-    def get_of(index):
-        return self.up_segment_info
+    std::string __str__() {
+        return "<Empty-Path></Empty-Path>";
+    }
+};
 
-    def __str__():
-        return "<Empty-Path></Empty-Path>"
-
-
+/*
 class PathCombinator(object):
     """
     Class that contains functions required to build end-to-end SCION paths.
@@ -711,3 +721,5 @@ class PathCombinator(object):
                     paths.append(path)
         return paths
 */
+
+#endif

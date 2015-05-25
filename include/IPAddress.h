@@ -22,14 +22,14 @@
  * .. note::
  *     Fill in the docstring.
  */
-#pragma once
+#ifndef IPADDRESS_H
+#define IPADDRESS_H
 
 #include <bitset>
 #include <iostream>
 #include <stdint.h>
 #include <cassert>
 #include <cstdlib>
-using namespace std;
 
 #define IPV4LENGTH 32
 #define IPV6LENGTH 128
@@ -44,7 +44,7 @@ public:
 		version = 0;
 		length = 0;
 	}
-	virtual string to_string() {}
+	virtual std::string to_string() {}
 	virtual uint32_t to_ulong() {}
 };
 
@@ -52,9 +52,9 @@ class IPv4Address : public IPAddress {
 	/* Representation: If IP address is a.b.c.d. 
 	 * address[0] => a, address[1] => b, etc.
 	 */
-	bitset<8> address[4];
+	std::bitset<8> address[4];
 
-	bool checked_parse(string addr) {
+	bool checked_parse(std::string addr) {
 		uint32_t dots = 0, dig[4] = {0};
 		uint32_t mask = ~(0xFF);
 		for(int i = 0; i < addr.length(); i++) {
@@ -72,23 +72,23 @@ class IPv4Address : public IPAddress {
 		if (dots == 3 && !((dig[0] & mask) || (dig[1] & mask)
 			|| (dig[2] & mask) || (dig[3] & mask))){
 			for(int i = 0; i < 4; i++)
-				address[i] = bitset<8>(dig[i]);
+				address[i] = std::bitset<8>(dig[i]);
 			return true;
 		}
 		return false;
 	}
 
 public:
-	IPv4Address(string addr) {
+	IPv4Address(const std::string &addr) {
 		version = 4;
 		length = IPV4LENGTH;
 		if (!checked_parse(addr))
-			cerr << "Invalid IP address" << endl;
+			std::cerr << "Invalid IP address" << std::endl;
 	}
 
-	string to_string() {
+	std::string to_string() {
 		/***UNIMPLEMENTED***/
-		cerr << "UNIMPLEMENTED" << endl;
+		std::cerr << "UNIMPLEMENTED" << std::endl;
 		exit(-1);
 		return "";
 	}
@@ -105,14 +105,14 @@ public:
 };
 
 class IPv6Address : public IPAddress {
-	bitset<16> address[8];
+	std::bitset<16> address[8];
 
-	string gen_zeros(int num) {
+	std::string gen_zeros(int num) {
 		/* Returns a string of `num`
 		 * zeros, separated by colons(':')
 		 */
 		assert(num > 0);
-		string res = "0";
+		std::string res = "0";
 		if (num == 1) {
 			return res;
 		}
@@ -123,12 +123,12 @@ class IPv6Address : public IPAddress {
 		return res;
 	}
 
-	void convert_to_canonical(string &addr) {
+	std::string convert_to_canonical(const std::string &addr) {
 		/* Converts collapsed 0's in the 
 		 * IPv6 address to a string of 
 		 * eight colon separated numbers.
 		 */ 
-		string res = "";
+		std::string res = "";
 		int colons = 0, pos = -1;
 		for(int i = 0; i < addr.length() - 1; i++) {
 			if (addr[i] == ':') {
@@ -146,9 +146,9 @@ class IPv6Address : public IPAddress {
 		/* If there are no collapsed 0s */ 
 		if (pos == -1) {
 			if (colons == 7)
-				return;
+				return addr;
 			else {
-				cerr << "Invalid IPv6 address" << endl;
+				std::cerr << "Invalid IPv6 address" << std::endl;
 				exit(-1);
 			}
 		}
@@ -174,62 +174,62 @@ class IPv6Address : public IPAddress {
 			res = addr.substr(0, pos+1)
 				+ gen_zeros(8-colons) + addr.substr(pos+1);
 		}
-		addr = res;
+		return res;
 	}
 
-	bool checked_parse(string addr) {
-		/* Returns true if addr is a well formed
+	bool checked_parse(const std::string &addr) {
+		/* Returns true if addr1 is a well formed
 		 * IPv6 address. Initializes the private data
 		 * member `Address` with contents from addr.
 		 */
-		convert_to_canonical(addr);
+		std::string addr_c = convert_to_canonical(addr);
 		
 		uint32_t colons = 0, dig[8] = {0};
 		uint32_t mask = ~(0xFFFF);
-		string current = "";
+		std::string current = "";
 
-		for(int i = 0; i < addr.length(); i++) {
-			if (addr[i] == ':') {
+		for(int i = 0; i < addr_c.length(); i++) {
+			if (addr_c[i] == ':') {
 				if (colons > 7)
 					return false; 
 				dig[colons] = strtoul(current.c_str(), NULL, 16);
 				colons++;
 				current = "";
 			}
-			else if ((addr[i] >= '0' && addr[i] <= '9')
-				|| (tolower(addr[i]) >= 'a' && tolower(addr[i]) <= 'f'))
-				current.push_back(addr[i]);
+			else if ((addr_c[i] >= '0' && addr_c[i] <= '9')
+				|| (tolower(addr_c[i]) >= 'a' && tolower(addr_c[i]) <= 'f'))
+				current.push_back(addr_c[i]);
 			else return false;
 		}
 		dig[colons] = strtoul(current.c_str(), NULL, 16);
 
 		bool correct = (colons == 7);
 		for(int i = 0; i < 8; i++) {
-			address[i] = bitset<16>(dig[i]);
+			address[i] = std::bitset<16>(dig[i]);
 			correct &= !(dig[i] & mask);
-			cout << address[i] << endl;
+			// std::cout << address[i] << std::endl;
 		}
 		return correct;
 	}
 
 public:
-	IPv6Address(string addr) {
+	IPv6Address(const std::string &addr) {
 		version = 6;
 		length = IPV6LENGTH;
 		if (!checked_parse(addr))
-			cerr << "Invalid IP address" << endl;
+			std::cerr << "Invalid IP address" << std::endl;
 	}
 
-	string to_string() {
+	std::string to_string() {
 		/***UNIMPLEMENTED***/
-		cerr << "UNIMPLEMENTED" << endl;
+		std::cerr << "UNIMPLEMENTED" << std::endl;
 		exit(-1);
 		return "";
 	}
 
 	uint32_t to_ulong() {
 		if (version != 6)
-			cerr << "Cannot convert IPv6 address to ulong\n";
+			std::cerr << "Cannot convert IPv6 address to ulong\n";
 		exit(-1);
 		return 0;
 	}
@@ -245,6 +245,8 @@ bool operator==(IPAddress a, IPAddress b) {
 		return false;
 	if (a.version == 4)
 		return a.to_ulong() == b.to_ulong();
-	cerr << "Equality check for IPv6 UNIMPLEMENTED" << endl;
+	std::cerr << "Equality check for IPv6 UNIMPLEMENTED" << std::endl;
 	exit(-1); 
 }
+
+#endif

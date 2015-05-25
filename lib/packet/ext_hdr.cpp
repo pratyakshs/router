@@ -16,8 +16,9 @@
 /* :mod:`ext_hdr` --- Extension header classes
  * ===========================================
  */
+#ifndef EXT_HDR_CPP
+#define EXT_HDR_CPP
 
-#include <string>
 #include "packet_base.cpp"
 
 class ExtensionHeader : public HeaderBase {
@@ -37,15 +38,15 @@ public:
         hdr_len = 0;
     }
 
-    ExtensionHeader(char *raw) : HeaderBase() {
+    ExtensionHeader(const std::string &raw) : HeaderBase() {
         next_ext = 0;
         hdr_len = 0;
-        if (raw)
+        if (raw.length())
             parse(raw);
     }
 
-    void parse(char *raw) {
-        int dlen = strlen(raw);
+    void parse(const std::string &raw) {
+        int dlen = raw.length();
         if (dlen < ExtensionHeader::MIN_LEN) {
             // logging.warning("Data too short to parse extension hdr: "
                             // "data len %u", dlen)
@@ -64,13 +65,13 @@ public:
         return res;
     }
 
-    int __len__() {
+    int length() {
         return 8;
     }
 
-    string __str__() {
-        return "[EH next hdr: " + to_string(next_ext) 
-               + ", len: " + to_string(hdr_len) + "]";
+    std::string __str__() {
+        return "[EH next hdr: " + std::to_string(next_ext) 
+               + ", len: " + std::to_string(hdr_len) + "]";
     }
 };
 
@@ -86,7 +87,7 @@ public:
     static const int MIN_LEN = 8;
     static const int TYPE = 220;  // Extension header type
     int fwd_flag;
-    ICNExtHdr(char *raw) : ExtensionHeader() {
+    ICNExtHdr(const std::string &raw) : ExtensionHeader() {
         // Tells the edge router whether to forward this pkt
         // to the local Content Cache or to the next AD.
         fwd_flag = 0;
@@ -95,12 +96,12 @@ public:
 //         self.cid = 0  // Content ID (20 bytes)
 //         self.src_addr = None  // src address (4, 8 or 20 bytes)
 //         self.dst_addr = None  // dst address (4, 8 or 20 bytes)
-        if (raw)
+        if (raw.length())
             parse(raw);
     }
 
-    void parse(char *raw) {
-        int dlen = strlen(raw);
+    void parse(const std::string &raw) {
+        int dlen = raw.length();
         if (dlen < ExtensionHeader::MIN_LEN) {
             // logging.warning("Data too short to parse ICN extension hdr: "
                             // "data len %u", dlen)
@@ -123,13 +124,15 @@ public:
         return res;
     }
 
-    int __len__() {
+    int length() {
         return ICNExtHdr::MIN_LEN;
     }
 
-    string __str__() {
-        return "[ICN EH next hdr: " + to_string(next_ext) + ", len: " 
-               + to_string(hdr_len) + ", fwd_flag: " 
-               + to_string(fwd_flag) + "]";
+    std::string __str__() {
+        return "[ICN EH next hdr: " + std::to_string(next_ext) + ", len: " 
+               + std::to_string(hdr_len) + ", fwd_flag: " 
+               + std::to_string(fwd_flag) + "]";
     }
 };
+
+#endif 

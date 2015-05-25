@@ -16,12 +16,12 @@
 /* :mod:`opaque_field` --- SCION Opaque fields
  * ===========================================
  */
+#ifndef OPAQUE_FIELD_CPP
+#define OPAQUE_FIELD_CPP
 
 #include <stdint.h>
 #include <bitset>
-#include <cstring>
 #include "BitArray.h"
-using namespace std;
 
 class OpaqueFieldType {
     /* 
@@ -32,8 +32,11 @@ class OpaqueFieldType {
  public:
     // Types for HopOpaqueFields (7 MSB bits).
     static const uint32_t NORMAL_OF = 0b0000000;
-    static const uint32_t LAST_OF = 0b0010000;  // indicates last hop OF on the half-path (TODO revise)
+
+    // indicates last hop OF on the half-path (TODO revise)
+    static const uint32_t LAST_OF = 0b0010000;  
     static const uint32_t PEER_XOVR = 0b0001000;
+    
     // Types for Info Opaque Fields (7 MSB bits).
     static const uint32_t TDC_XOVR = 0b1000000;
     static const uint32_t NON_TDC_XOVR = 0b1100000;
@@ -48,21 +51,22 @@ class OpaqueField {
      * Base class for the different kinds of opaque fields in SCION.
      */
 protected:
-    static const int LEN = 8;
     int info;
     int type;
     bool parsed;
-    char *raw;
+    std::string raw;
 
 public:
+    static const int LEN = 8;
+    
     OpaqueField() {
         info = 0;  // TODO verify path.PathType in that context
         type = 0;
         parsed = false;
-        raw = NULL;
+        raw = "";
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         /* Populates fields from a raw byte block.
          */
     }
@@ -75,32 +79,32 @@ public:
     bool is_regular() {
         /* Returns true if opaque field is regular, false otherwise.
          */
-        return !bitset<8>(info)[6];
+        return !std::bitset<8>(info)[6];
     }
 
     bool is_continue() {
         /* Returns true if continue bit is set, false otherwise.
          */
-        return !bitset<8>(info)[5];
+        return !std::bitset<8>(info)[5];
     }
 
     bool is_xovr() {
         /* Returns true if crossover point bit is set, false otherwise.
          */
-        return !bitset<8>(info)[4];
+        return !std::bitset<8>(info)[4];
     }
 
-    string __str__() {
+    std::string __str__() {
         return "";
     }
 
-    string __repr__() {
+    std::string __repr__() {
         return __str__();
     }
 
     // TODO test: one __eq__ breaks router when two SOFs in a path are identical
     bool operator==(OpaqueField &other) {
-        return (strcmp(other.raw, raw) == 0);
+        return raw == other.raw;
     }
 
     bool operator!=(OpaqueField &other) {
@@ -126,25 +130,25 @@ class HopOpaqueField : public CommonOpaqueField {
      * Opaque field for a hop in a path of the SCION packet header.
      * 
      * Each hop opaque field has a info (8 bits), expiration time (8 bits)
-     * ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
-     * the opaque field.
+     * ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) 
+     * authenticating the opaque field.
      */
 public:
-    HopOpaqueField(char *raw) : CommonOpaqueField() {
+    HopOpaqueField(const std::string &raw) : CommonOpaqueField() {
         exp_time = 0;
         ingress_if = 0;
         egress_if = 0;
         mac = 0;
-        if (raw)
+        if (raw.length())
             parse(raw);
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         /**
          * Populates fields from a raw byte block.
          */ 
-        strcpy(this->raw, raw);
-        int dlen = strlen(raw);
+        this->raw = raw;
+        int dlen = raw.length();
         if (dlen < HopOpaqueField::LEN) {
             // logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return;
@@ -193,12 +197,12 @@ public:
                 mac == other.mac);
     }
 
-    string __str__() {
-        return "[Hop OF info: " + to_string(info) + ", exp_time: " 
-               + to_string(exp_time) + ", ingress if: " 
-               + to_string(ingress_if) + ", egress if: " 
-               + to_string(egress_if) + ", mac: " 
-               + to_string(mac) + "]"; 
+    std::string __str__() {
+        return "[Hop OF info: " + std::to_string(info) + ", exp_time: " 
+               + std::to_string(exp_time) + ", ingress if: " 
+               + std::to_string(ingress_if) + ", egress if: " 
+               + std::to_string(egress_if) + ", mac: " 
+               + std::to_string(mac) + "]"; 
     }
 };
 
@@ -212,22 +216,21 @@ class InfoOpaqueField : public CommonOpaqueField {
      * segment (1 byte).
      */
 public:  
-    InfoOpaqueField(char *raw) : CommonOpaqueField() {
+    InfoOpaqueField(const std::string &raw) : CommonOpaqueField() {
         timestamp = 0;
         isd_id = 0;
         hops = 0;
         up_flag = false;
-        if (raw)
+        if (raw.length())
             parse(raw);
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         /**
          * Populates fields from a raw byte block.
          */
-        int dlen = strlen(raw);        
-        this->raw = new char[dlen];
-        strcpy(this->raw, raw);
+        int dlen = raw.length();        
+        this->raw = raw;
 
         if (dlen < InfoOpaqueField::LEN) {
             // logging.warning("IOF: Data too short for parsing, len: %u", dlen)
@@ -274,7 +277,7 @@ public:
         return res;
     }
 
-    string __str__() {
+    std::string __str__() {
         // iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
         //            (self.info, self.up_flag, self.timestamp, self.isd_id,
         //             self.hops))
@@ -282,7 +285,7 @@ public:
         // stream << std::hex << info;
         // string result( stream.str() );
         // return "[Info OF info: " + result + ", up: %r, TS: %u, ISD ID: %u, hops: %u]"
-        cerr << "***UNIMPLEMENTED***" << endl;
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
         exit(-1);
         return "";
     }
@@ -308,23 +311,22 @@ class TRCField : public OpaqueField {
     int if_id;
     int reserved;
 public:
-    TRCField(char *raw) : OpaqueField() {
+    TRCField(const std::string &raw) : OpaqueField() {
         info = OpaqueFieldType::TRC_OF;
         trc_version = 0;
         if_id = 0;
         reserved = 0;
-        if (raw)
+        if (raw.length())
             parse(raw);
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         /**
          * Populates fields from a raw byte block.
          */
-        int dlen = strlen(raw);
-        this->raw = new char[dlen];
-        strcpy(this->raw, raw);
-        
+        int dlen = raw.length();
+        this->raw = raw;
+
         if (dlen < TRCField::LEN) {
             // logging.warning("TRCF: Data too short for parsing, len: %u", dlen)
             return;
@@ -362,11 +364,11 @@ public:
         return res;
     }
 
-    string __str__() {
+    std::string __str__() {
         // trcf_str = ("[TRC OF info: %x, TRCv: %u, IF ID: %u]\n" %
                     // (self.info, self.trc_version, self.if_id))
         // return trcf_str
-        cerr << "***UNIMPLEMENTED***" << endl;
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
         exit(-1);
         return "";
     }
@@ -393,17 +395,17 @@ public:
         cert_chain_version = 0;
         sig_len = 0;
         block_size = 0;
-        if (raw) 
+        if (raw.length()) 
             parse(raw);
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         /**
          * Populates fields from a raw byte block.
          */
-        int dlen = strlen(raw);
-        this->raw = new char[dlen];
-        strcpy(this->raw, raw);
+        int dlen = raw.length();
+        this->raw = raw;
+
         if (dlen < SupportSignatureField::LEN) {
             // logging.warning("SSF: Data too short for parsing, len: %u", dlen)
             return;
@@ -443,12 +445,12 @@ public:
         return res;
     }
 
-    string __str__() {
+    std::string __str__() {
         // ssf_str = ("[Support Signature OF cert_chain_version: %x, "
         //            "sig_len: %u, block_size: %u]\n" % (
         //                self.cert_chain_version, self.sig_len, self.block_size))
         // return ssf_str
-        cerr << "***UNIMPLEMENTED***" << endl;
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
         exit(-1);
         return "";
     }
@@ -474,23 +476,22 @@ class SupportPeerField: public OpaqueField {
     int bw_class;
     int reserved;
 public:
-    SupportPeerField(char *raw) : OpaqueField() {
+    SupportPeerField(const std::string &raw) : OpaqueField() {
         isd_id = 0;
         bwalloc_f = 0;
         bwalloc_r = 0;
         bw_class = 0;
         reserved = 0;
-        if (raw)
+        if (raw.length())
             parse(raw);
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         /**
          * Populates fields from a raw byte block.
          */
-        int dlen = strlen(raw);
-        this->raw = new char[dlen];
-        strcpy(this->raw, raw);
+        int dlen = raw.length();
+        this->raw = raw;
         
         if (dlen < SupportPeerField::LEN) {
             // logging.warning("SPF: Data too short for parsing, len: %u", dlen)
@@ -537,13 +538,13 @@ public:
         return res;
     }
 
-    string __str__() {
+    std::string __str__() {
         // spf_str = ("[Support Peer OF TD ID: %x, bwalloc_f: %u, "
         //            "bwalloc_r: %u, bw_class: %u]\n" % (
         //                self.isd_id, self.bwalloc_f, self.bwalloc_r,
         //                self.bw_class))
         // return spf_str
-        cerr << "***UNIMPLEMENTED***" << endl;
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
         exit(-1);
         return "";
     }
@@ -574,7 +575,7 @@ class SupportPCBField : public OpaqueField {
     int bebw_f;
     int bebw_r;
 public:
-    SupportPCBField(char *raw) : OpaqueField() {
+    SupportPCBField(const std::string &raw) : OpaqueField() {
         isd_id = 0;
         bwalloc_f = 0;
         bwalloc_r = 0;
@@ -582,17 +583,16 @@ public:
         dyn_bwalloc_r = 0;
         bebw_f = 0;
         bebw_r = 0;
-        if (raw)
+        if (raw.length())
             parse(raw);
     }
 
-    void parse(char *raw) {
+    void parse(const std::string &raw) {
         /**
          * Populates fields from a raw byte block.
          */
-        int dlen = strlen(raw);
-        this->raw = new char[dlen];
-        strcpy(this->raw, raw);
+        int dlen = raw.length();
+        this->raw = raw;
 
         if (dlen < SupportPCBField::LEN) {
             // logging.warning("SPCBF: Data too short for parsing, len: %u", dlen)
@@ -648,11 +648,11 @@ public:
         return res;
     }
 
-    string __str__() {
+    std::string __str__() {
         // spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %
         //              (self.isd_id, self.bwalloc_f, self.bwalloc_r))
         // return spcbf_str
-        cerr << "***UNIMPLEMENTED***" << endl;
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
         exit(-1);
         return "";
     }
@@ -667,3 +667,5 @@ public:
                 bebw_r == other.bebw_r);
     }
 };
+
+#endif
