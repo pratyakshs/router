@@ -16,6 +16,8 @@
 /* :mod:`packet_base` --- Packet base class
  * ===========================================
  */
+#pragma once
+
 #include <string>
 #include <cstring>
 #include "BitArray.h"
@@ -162,7 +164,7 @@ public:
         return 0;
     }
 
-    bool __eq__(PayloadBase other) {
+    bool operator==(PayloadBase &other) {
         return strcmp(raw, other.raw) == 0;
     }
 };

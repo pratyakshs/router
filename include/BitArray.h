@@ -34,10 +34,14 @@
 using namespace std;
 
 class BitArray {
-	vector<bool> array;
-	uint32_t _length;
-
+	/**
+	 * A hacky version of a data structure representing an
+	 * array of bits. Ideally params `array` and `_length`
+	 * should be private.
+	 */
 public:
+	uint32_t _length;
+	vector<bool> array;
 	BitArray(char *raw) {
 		/**
 		 * Constructor - from char array
@@ -94,7 +98,38 @@ public:
 		_length += len;
 	}
 
+	vector<bool> get_vector() {
+		return array;
+	}
+
 	uint32_t length() {
 		return _length;
 	}
+
+	BitArray operator+(BitArray &other) {
+		/**
+		 * The underlying vectors get merged.
+		 */
+		BitArray res;
+		res.array.reserve(this->length() + other.length());
+		res.array.insert(res.array.end(), array.begin(), array.end());
+		res.array.insert(res.array.end(), 
+						 other.array.begin(), other.array.end());
+		res._length = res.array.size();
+		return res;
+	}
+
+	string get_string() {
+		string s;
+		assert(!(array.size() & 0x8)); // number of bits must be multiple of 8
+		int len = array.size() >> 3;
+		for(int i = 0; i < len; i++) {
+			bitset<8> bits;
+			for(int j = 0; j < 8; j++) 
+				bits[j] = array[i*8+j];
+			s.push_back((char)bits.to_ulong());
+		}
+		return s; 
+	}
 };
+
