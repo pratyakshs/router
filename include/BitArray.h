@@ -22,7 +22,8 @@
  * .. note::
  *     Fill in the docstring.
  */
-#pragma once
+#ifndef BITARRAY_H
+#define BITARRAY_H
 
 #include <cstring>
 #include <vector>
@@ -35,11 +36,9 @@
 class BitArray {
 	/**
 	 * A hacky version of a data structure representing an
-	 * array of bits. Ideally params `array` and `_length`
-	 * should be private.
+	 * array of bits. Ideally param `array` should be private.
 	 */
 public:
-	uint32_t _length;
 	std::vector<bool> array;
 	BitArray(const std::string &raw) {
 		/**
@@ -52,18 +51,16 @@ public:
 			for(int j = 0; j < 8; j++) 
 				array.push_back(c[j]);
 		}
-		_length = 8 * len;
 	}
 
 	BitArray() {
 		/**
 		 * Default constructor.
 		 */
-		_length = 0;
 		array.clear();
 	}
 
-	unsigned long long get_subarray(int pos, uint32_t len) {
+	unsigned long long get_subarray(int pos, uint32_t len) const {
 		/**
 		 * Converts `len` bits starting from `pos` to decimal
 		 * param pos: start index in the bitarray
@@ -94,31 +91,40 @@ public:
 		std::bitset<64> _val(val);
 		for(int i = len-1; i >= 0; i++) 
 			array.push_back(_val[i]);
-		_length += len;
 	}
 
-	std::vector<bool> get_vector() {
+	std::vector<bool> get_vector() const {
 		return array;
 	}
 
-	uint32_t length() {
-		return _length;
+	uint32_t length() const {
+		/** 
+		 * Returns the length in bits
+		 */
+		return array.size();
 	}
 
-	BitArray operator+(BitArray &other) {
+	BitArray operator+(const BitArray &other) {
 		/**
 		 * The underlying vectors get merged.
 		 */
 		BitArray res;
-		res.array.reserve(this->length() + other.length());
+		res.array.reserve(length() + other.length());
 		res.array.insert(res.array.end(), array.begin(), array.end());
 		res.array.insert(res.array.end(), 
 						 other.array.begin(), other.array.end());
-		res._length = res.array.size();
 		return res;
 	}
 
-	std::string get_string() {
+	BitArray operator+=(const BitArray &other) {
+		/**
+		 * Similar to operator+
+		 */
+		array.reserve(other.array.size() + array.size());
+		array.insert(array.end(), other.array.begin(), other.array.end());
+	}
+
+	std::string get_string() const {
 		std::string s;
 		assert(!(array.size() & 0x8)); // number of bits must be multiple of 8
 		int len = array.size() >> 3;
@@ -132,3 +138,4 @@ public:
 	}
 };
 
+#endif

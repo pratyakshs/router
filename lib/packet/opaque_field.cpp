@@ -134,6 +134,10 @@ class HopOpaqueField : public CommonOpaqueField {
      * authenticating the opaque field.
      */
 public:
+    HopOpaqueField() {
+        HopOpaqueField("");
+    }
+
     HopOpaqueField(const std::string &raw) : CommonOpaqueField() {
         exp_time = 0;
         ingress_if = 0;

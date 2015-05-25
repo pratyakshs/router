@@ -115,375 +115,418 @@ public:
     }
 };
 
-/*
-class CorePath(PathBase):
-    """
-    A (non-shortcut) path through the ISD core.
 
-    The sequence of opaque fields for such a path is:
-    | info OF up-segment | hop OF 1 | ... | hop OF N | info OF core-segment |
-    | hop OF 1 \ ... | hop OF N | info OF down-segment |
-    | hop OF 1 | ... | hop OF N |
-    """
-    def __init__(raw=None):
-        PathBase.__init__()
-        self.core_segment_info = None
-        self.core_segment_hops = []
-
-        if raw is not None:
-            self.parse(raw)
+class CorePath : public PathBase {
+    /**
+     * A (non-shortcut) path through the ISD core.
+     * 
+     * The sequence of opaque fields for such a path is:
+     * | info OF up-segment | hop OF 1 | ... | hop OF N | info OF core-segment |
+     * | hop OF 1 \ ... | hop OF N | info OF down-segment |
+     * | hop OF 1 | ... | hop OF N |
+     */
+    InfoOpaqueField core_segment_info;
+    std::vector<HopOpaqueField> core_segment_hops;
+ public:
+    CorePath(const std::string &raw) : PathBase() {
+        if (raw.length())
+            parse(raw);
+    }
 
     // TODO PSz: a flag is needed to distinguish downPath-only case. I.e. if
     // SCIONPacket.up_path is false and path has only one special OF, then it
     // should parse only DownPath. It would be easier to put down/up flag to SOF.
-    def parse(raw):
-        """
-        Parses the raw data and populates the fields accordingly.
-        """
-        assert isinstance(raw, bytes)
+    void parse(const std::string &raw) {
+        /**
+         * Parses the raw data and populates the fields accordingly.
+         */
         // Parse up-segment
-        self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
-        offset = InfoOpaqueField.LEN
-        for _ in range(self.up_segment_info.hops):
-            self.up_segment_hops.append(
-                HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-            offset += HopOpaqueField.LEN
+        up_segment_info = InfoOpaqueField(raw.substr(0, InfoOpaqueField::LEN));
+        int offset = InfoOpaqueField::LEN;
+        for (int i = 0; i < up_segment_info.hops; i++) {
+            up_segment_hops.push_back(
+                HopOpaqueField(raw.substr(offset, HopOpaqueField::LEN)));
+            offset += HopOpaqueField::LEN;
+        }
         // Parse core-segment
-        if len(raw) != offset:
-            self.core_segment_info = \
-                InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-            offset += InfoOpaqueField.LEN
-            for _ in range(self.core_segment_info.hops):
-                self.core_segment_hops.append(
-                    HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-                offset += HopOpaqueField.LEN
+        if (raw.length() != offset) {
+            core_segment_info = InfoOpaqueField(raw.substr(offset, 
+                                                InfoOpaqueField::LEN));
+            offset += InfoOpaqueField::LEN; 
+
+            for (int i = 0; i < core_segment_info.hops; i++) {
+                core_segment_hops.push_back(HopOpaqueField(
+                    raw.substr(offset, HopOpaqueField::LEN)));
+                offset += HopOpaqueField::LEN;
+            }
+        }
         // Parse down-segment
-        if len(raw) != offset:
-            self.down_segment_info = \
-                InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-            offset += InfoOpaqueField.LEN
-            for _ in range(self.down_segment_info.hops):
-                self.down_segment_hops.append(
-                    HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-                offset += HopOpaqueField.LEN
+        if (raw.length() != offset) {
+            down_segment_info = InfoOpaqueField(
+                raw.substr(offset, InfoOpaqueField::LEN));
+            offset += InfoOpaqueField::LEN;
+            for (int i = 0; i < down_segment_info.hops; i++) {
+                down_segment_hops.push_back(HopOpaqueField(raw.substr(
+                                    offset, HopOpaqueField::LEN)));
+                offset += HopOpaqueField::LEN;
+            }
+        }
+        parsed = true;
+    }
 
-        self.parsed = True
+    BitArray pack() {
+        /**
+         * Packs the opaque fields and returns a byte array.
+         */
+        BitArray bits;
+        if (true) {///? check if up_segment_info is set 
+            bits += up_segment_info.pack();
+            for (int i = 0; i < up_segment_hops.size(); i++) 
+                bits += up_segment_hops[i].pack();
+        }
+        if (true) {///? check if core_segment_info is set 
+            bits += core_segment_info.pack();
+            for (int i = 0; i < core_segment_hops.size(); i++) 
+                bits += core_segment_hops[i].pack();
+        }
+        if (true) {///? check if down_segment_info is set 
+            bits += down_segment_info.pack();
+            for (int i = 0; i < down_segment_hops.size(); i++) 
+                bits += down_segment_hops[i].pack(); 
+        }
+        return bits;
+    }
 
-    def pack():
-        """
-        Packs the opaque fields and returns a byte array.
-        """
-        data = []
-        if self.up_segment_info:
-            data.append(self.up_segment_info.pack())
-            for of in self.up_segment_hops:
-                data.append(of.pack())
-        if self.core_segment_info:
-            data.append(self.core_segment_info.pack())
-            for of in self.core_segment_hops:
-                data.append(of.pack())
-        if self.down_segment_info:
-            data.append(self.down_segment_info.pack())
-            for of in self.down_segment_hops:
-                data.append(of.pack())
+    void reverse() {
+        PathBase::reverse();
+        std::reverse(core_segment_hops.begin(), core_segment_hops.end());
+        if (true) ///? check if core_segment_info is not None
+            core_segment_info.up_flag ^= true;
+    }
 
-        return b"".join(data)
+    CommonOpaqueField* get_of(int index) {
+        /**
+         * Returns the opaque field for the given index.
+         */
+        ///? check is up_segment_info, core_segment_info are not NULL.
+        if (index == 0)
+            return &up_segment_info;
+        if (index <= up_segment_hops.size()) 
+            return &up_segment_hops[index - 1];
+        if (index == up_segment_hops.size() + 1)
+            return &core_segment_info;
+        if (index <= up_segment_hops.size() + 1 + core_segment_hops.size())
+            return &core_segment_hops[index - 2 - up_segment_hops.size()];
+        if (index == up_segment_hops.size() + 2 + core_segment_hops.size())
+            return &down_segment_info;
+        if (index <= up_segment_hops.size() + 2 + core_segment_hops.size() 
+                                            + down_segment_hops.size())
+            return &down_segment_hops[index - 3 - core_segment_hops.size()
+                                            - down_segment_hops.size()];
+        return NULL;
+    }
 
-    def reverse():
-        PathBase.reverse()
-        self.core_segment_hops.reverse()
-        if self.core_segment_info is not None:
-            self.core_segment_info.up_flag ^= True
+    CorePath(InfoOpaqueField up_inf, std::vector<HopOpaqueField> up_hops,
+             InfoOpaqueField core_inf, std::vector<HopOpaqueField> core_hops,
+             InfoOpaqueField dw_inf, std::vector<HopOpaqueField> dw_hops) {
+        /**
+         * Returns CorePath with the values specified.
+         * @param up_inf: InfoOpaqueField of up_segment
+         * @param up_hops: list of HopOpaqueField of up_segment
+         * @param core_inf: InfoOpaqueField for core_segment
+         * @param core_hops: list of HopOpaqueFields of core_segment
+         * @param dw_inf: InfoOpaqueField of down_segment
+         * @param dw_hops: list of HopOpaqueField of down_segment
+         */
+        up_segment_info = up_inf;
+        up_segment_hops = up_hops;
+        core_segment_info = core_inf;
+        core_segment_hops = core_hops;
+        down_segment_info = dw_inf;
+        down_segment_hops = dw_hops;
+    }
 
-    def get_of(index):
-        """
-        Returns the opaque field for the given index.
-        """
-        // Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
-        if self.core_segment_info:
-            tmp.append(self.core_segment_info)
-            tmp.extend(self.core_segment_hops)
-        if self.down_segment_info:
-            tmp.append(self.down_segment_info)
-            tmp.extend(self.down_segment_hops)
-        if index >= len(tmp):
-            return None
-        else:
-            return tmp[index]
+    std::string __str__() {
+        // s = []
+        // s.push_back("<Core-Path>:\n")
 
-    @classmethod
-    def from_values(cls, up_inf=None, up_hops=None,
-                    core_inf=None, core_hops=None,
-                    dw_inf=None, dw_hops=None):
-        """
-        Returns CorePath with the values specified.
-        @param up_inf: InfoOpaqueField of up_segment
-        @param up_hops: list of HopOpaqueField of up_segment
-        @param core_inf: InfoOpaqueField for core_segment
-        @param core_hops: list of HopOpaqueFields of core_segment
-        @param dw_inf: InfoOpaqueField of down_segment
-        @param dw_hops: list of HopOpaqueField of down_segment
-        """
-        if up_hops is None:
-            up_hops = []
-        if core_hops is None:
-            core_hops = []
-        if dw_hops is None:
-            dw_hops = []
+        // if self.up_segment_info:
+        //     s.push_back("<Up-Segment>:\n")
+        //     s.push_back(str(self.up_segment_info) + "\n")
+        //     for of in self.up_segment_hops:
+        //         s.push_back(str(of) + "\n")
+        //     s.push_back("</Up-Segment>\n")
 
-        cp = CorePath()
-        cp.up_segment_info = up_inf
-        cp.up_segment_hops = up_hops
-        cp.core_segment_info = core_inf
-        cp.core_segment_hops = core_hops
-        cp.down_segment_info = dw_inf
-        cp.down_segment_hops = dw_hops
-        return cp
+        // if self.core_segment_info:
+        //     s.push_back("<Core-Segment>\n")
+        //     s.push_back(str(self.core_segment_info) + "\n")
+        //     for of in self.core_segment_hops:
+        //         s.push_back(str(of) + "\n")
+        //     s.push_back("</Core-Segment>\n")
 
-    def __str__():
-        s = []
-        s.append("<Core-Path>:\n")
+        // if self.down_segment_info:
+        //     s.push_back("<Down-Segment>\n")
+        //     s.push_back(str(self.down_segment_info) + "\n")
+        //     for of in self.down_segment_hops:
+        //         s.push_back(str(of) + "\n")
+        //     s.push_back("</Down-Segment>\n")
 
-        if self.up_segment_info:
-            s.append("<Up-Segment>:\n")
-            s.append(str(self.up_segment_info) + "\n")
-            for of in self.up_segment_hops:
-                s.append(str(of) + "\n")
-            s.append("</Up-Segment>\n")
-
-        if self.core_segment_info:
-            s.append("<Core-Segment>\n")
-            s.append(str(self.core_segment_info) + "\n")
-            for of in self.core_segment_hops:
-                s.append(str(of) + "\n")
-            s.append("</Core-Segment>\n")
-
-        if self.down_segment_info:
-            s.append("<Down-Segment>\n")
-            s.append(str(self.down_segment_info) + "\n")
-            for of in self.down_segment_hops:
-                s.append(str(of) + "\n")
-            s.append("</Down-Segment>\n")
-
-        s.append("</Core-Path>")
-        return "".join(s)
+        // s.push_back("</Core-Path>")
+        // return "".join(s)
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
+        return "";
+    }
+};
 
 
-class CrossOverPath(PathBase):
-    """
-    A shortcut path using a cross-over link.
+class CrossOverPath : public PathBase {
+    /**
+     * A shortcut path using a cross-over link.
+     * 
+     * The sequence of opaque fields for such a path is:
+     * | info OF up-segment |  hop OF 1 | ... | hop OF N | upstream AD OF |
+     * | info OF down-segment | upstream AD OF | hop OF 1 | ... | hop OF N |
+     * The upstream AD OF is needed to verify the last hop of the up-segment /
+     * first hop of the down-segment respectively.
+     */
+    HopOpaqueField up_segment_upstream_ad;
+    HopOpaqueField down_segment_upstream_ad;
+public:
+    CrossOverPath(const std::string &raw) : PathBase() {
+        // up_segment_upstream_ad = HopOpaqueField("");
+        // down_segment_upstream_ad = HopOpaqueField("");
+        if (raw.length())
+            parse(raw);
+    }
 
-    The sequence of opaque fields for such a path is:
-    | info OF up-segment |  hop OF 1 | ... | hop OF N | upstream AD OF |
-    | info OF down-segment | upstream AD OF | hop OF 1 | ... | hop OF N |
-    The upstream AD OF is needed to verify the last hop of the up-segment /
-    first hop of the down-segment respectively.
-    """
-
-    def __init__(raw=None):
-        PathBase.__init__()
-        self.up_segment_upstream_ad = None
-        self.down_segment_upstream_ad = None
-
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(raw):
-        """
-        Parses the raw data and populates the fields accordingly.
-        """
-        assert isinstance(raw, bytes)
+    void parse(const std::string &raw) {
+        /**
+         * Parses the raw data and populates the fields accordingly.
+         */
         // Parse up-segment
-        self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
-        offset = InfoOpaqueField.LEN
-        for _ in range(self.up_segment_info.hops):
-            self.up_segment_hops.append(
-                HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-            offset += HopOpaqueField.LEN
-        self.up_segment_upstream_ad = \
-            HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
-        offset += HopOpaqueField.LEN
+        up_segment_info = InfoOpaqueField(raw.substr(0, InfoOpaqueField::LEN));
+        int offset = InfoOpaqueField::LEN;
+        for (int i = 0; i < up_segment_info.hops; i++) {
+            up_segment_hops.push_back(HopOpaqueField(raw.substr(offset, 
+                                                     HopOpaqueField::LEN)));
+            offset += HopOpaqueField::LEN;
+        }
+        up_segment_upstream_ad = HopOpaqueField(raw.substr(offset, 
+                                                HopOpaqueField::LEN));
+        offset += HopOpaqueField::LEN;
 
         // Parse down-segment
-        self.down_segment_info = \
-            InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-        offset += InfoOpaqueField.LEN
-        self.down_segment_upstream_ad = \
-            HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
-        offset += HopOpaqueField.LEN
-        for _ in range(self.down_segment_info.hops):
-            self.down_segment_hops.append(
-                HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-            offset += HopOpaqueField.LEN
+        down_segment_info = InfoOpaqueField(raw.substr(offset, 
+                                            InfoOpaqueField::LEN));
+        offset += InfoOpaqueField::LEN;
+        down_segment_upstream_ad = HopOpaqueField(raw.substr(offset, 
+                                                  HopOpaqueField::LEN));
+        offset += HopOpaqueField::LEN;
+        for (int i = 0; i < down_segment_info.hops; i++) {
+            down_segment_hops.push_back(
+                HopOpaqueField(raw.substr(offset, HopOpaqueField::LEN)));
+            offset += HopOpaqueField::LEN;
+        }
+        parsed = true;
+    }
 
-        self.parsed = True
+    BitArray pack() {
+        /**
+         * Packs the opaque fields and returns a byte array.
+         */
+        BitArray res;
+        res += up_segment_info.pack();
+        for (int i = 0; i < up_segment_hops.size(); i++) 
+            res += up_segment_hops[i].pack();
+        
+        res += up_segment_upstream_ad.pack();
+        res += down_segment_info.pack();
+        res += down_segment_upstream_ad.pack();
+        for (int i = 0; i < down_segment_hops.size(); i++) 
+            res += down_segment_hops[i].pack();
+        return res;
+    }
 
-    def pack():
-        """
-        Packs the opaque fields and returns a byte array.
-        """
-        data = []
-        data.append(self.up_segment_info.pack())
-        for of in self.up_segment_hops:
-            data.append(of.pack())
-        data.append(self.up_segment_upstream_ad.pack())
-        data.append(self.down_segment_info.pack())
-        data.append(self.down_segment_upstream_ad.pack())
-        for of in self.down_segment_hops:
-            data.append(of.pack())
-
-        return b"".join(data)
-
-    def reverse():
+    void reverse() {
         // Reverse hops and info fields.
-        PathBase.reverse()
+        PathBase::reverse();
         // Reverse upstream AD fields.
-        self.up_segment_upstream_ad, self.down_segment_upstream_ad = \
-            self.down_segment_upstream_ad, self.up_segment_upstream_ad
+        HopOpaqueField temp = up_segment_upstream_ad;
+        up_segment_upstream_ad = down_segment_upstream_ad;
+        down_segment_upstream_ad = temp;
+    }
 
-    def get_of(index):
+    CommonOpaqueField* get_of(int index) {
         // Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
-        tmp.append(self.up_segment_upstream_ad)
-        tmp.append(self.down_segment_info)
-        tmp.append(self.down_segment_upstream_ad)
-        tmp.extend(self.down_segment_hops)
-        return tmp[index]
+        if (index == 0)
+            return &up_segment_info;
+        if (index <= up_segment_hops.size()) 
+            return &up_segment_hops[index - 1];
+        if (index == up_segment_hops.size() + 1)
+            return &up_segment_upstream_ad;
+        if (index == up_segment_hops.size() + 2)
+            return &down_segment_info;
+        if (index == up_segment_hops.size() + 3)
+            return &down_segment_upstream_ad;
+        if (index <= up_segment_hops.size() + 3 + down_segment_hops.size())
+            return &down_segment_hops[index - 4 + up_segment_hops.size()];
+        return NULL;
+    }
 
-    def __str__():
-        s = []
-        s.append("<CrossOver-Path>:\n<Up-Segment>:\n")
-        s.append(str(self.up_segment_info) + "\n")
-        for of in self.up_segment_hops:
-            s.append(str(of) + "\n")
-        s.append("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
-        s.append("</Up-Segment>\n<Down-Segment>\n")
-        s.append(str(self.down_segment_info) + "\n")
-        s.append("Upstream AD: " + str(self.down_segment_upstream_ad) + "\n")
-        for of in self.down_segment_hops:
-            s.append(str(of) + "\n")
-        s.append("</Down-Segment>\n</CrossOver-Path>")
+    std::string __str__() {
+        // s = []
+        // s.push_back("<CrossOver-Path>:\n<Up-Segment>:\n")
+        // s.push_back(str(self.up_segment_info) + "\n")
+        // for of in self.up_segment_hops:
+        //     s.push_back(str(of) + "\n")
+        // s.push_back("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
+        // s.push_back("</Up-Segment>\n<Down-Segment>\n")
+        // s.push_back(str(self.down_segment_info) + "\n")
+        // s.push_back("Upstream AD: " + str(self.down_segment_upstream_ad) + "\n")
+        // for of in self.down_segment_hops:
+        //     s.push_back(str(of) + "\n")
+        // s.push_back("</Down-Segment>\n</CrossOver-Path>")
 
-        return "".join(s)
+        // return "".join(s)
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
+        exit(-1);
+        return "";
+    }
+};
 
 
-class PeerPath(PathBase):
-    """
-    A shortcut path using a crossover link.
+class PeerPath : public PathBase {
+    /**
+     * A shortcut path using a crossover link.
+     * 
+     * The sequence of opaque fields for such a path is:
+     * | info OF up-segment |  hop OF 1 | ... | hop OF N | peering link OF |
+     * | upstream AD OF | info OF down-segment | upstream AD OF | peering link OF |
+     * | hop OF 1 | ... | hop OF N |
+     * The upstream AD OF is needed to verify the last hop of the up-segment /
+     * first hop of the down-segment respectively.
+     */
+    HopOpaqueField up_segment_peering_link;
+    HopOpaqueField up_segment_upstream_ad;
+    HopOpaqueField down_segment_peering_link;
+    HopOpaqueField down_segment_upstream_ad;
+public:
+    PeerPath(const std::string &raw) : PathBase() {
+        if (raw.length())
+            parse(raw);
+    }
 
-    The sequence of opaque fields for such a path is:
-    | info OF up-segment |  hop OF 1 | ... | hop OF N | peering link OF |
-    | upstream AD OF | info OF down-segment | upstream AD OF | peering link OF |
-    | hop OF 1 | ... | hop OF N |
-    The upstream AD OF is needed to verify the last hop of the up-segment /
-    first hop of the down-segment respectively.
-    """
-
-    def __init__(raw=None):
-        PathBase.__init__()
-        self.up_segment_peering_link = None
-        self.up_segment_upstream_ad = None
-        self.down_segment_peering_link = None
-        self.down_segment_upstream_ad = None
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(raw):
-        """
-        Parses the raw data and populates the fields accordingly.
-        """
-        assert isinstance(raw, bytes)
+    void parse(const std::string &raw) {
+        /**
+         * Parses the raw data and populates the fields accordingly.
+         */
         // Parse up-segment
-        self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
-        offset = InfoOpaqueField.LEN
-        for _ in range(self.up_segment_info.hops):
-            self.up_segment_hops.append(
-                HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-            offset += HopOpaqueField.LEN
-        self.up_segment_peering_link = \
-            HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
-        offset += HopOpaqueField.LEN
-        self.up_segment_upstream_ad = \
-            HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
-        offset += HopOpaqueField.LEN
+        up_segment_info = InfoOpaqueField(raw.substr(0, InfoOpaqueField::LEN));
+        int offset = InfoOpaqueField::LEN;
+        for (int i = 0; i < up_segment_info.hops; i++) {
+            up_segment_hops.push_back(
+                HopOpaqueField(raw.substr(offset, HopOpaqueField::LEN)));
+            offset += HopOpaqueField::LEN;
+        }
+        up_segment_peering_link = HopOpaqueField(raw.substr(offset, 
+                                                 HopOpaqueField::LEN));
+        offset += HopOpaqueField::LEN;
+        up_segment_upstream_ad = HopOpaqueField(raw.substr(offset, 
+                                                HopOpaqueField::LEN));
+        offset += HopOpaqueField::LEN;
 
         // Parse down-segment
-        self.down_segment_info = \
-            InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-        offset += InfoOpaqueField.LEN
-        self.down_segment_upstream_ad = \
-            HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
-        offset += HopOpaqueField.LEN
-        self.down_segment_peering_link = \
-            HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
-        offset += HopOpaqueField.LEN
-        for _ in range(self.down_segment_info.hops):
-            self.down_segment_hops.append(
-                HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-            offset += HopOpaqueField.LEN
+        down_segment_info = InfoOpaqueField(raw.substr(offset, 
+                                            InfoOpaqueField::LEN));
+        offset += InfoOpaqueField::LEN;
+        down_segment_upstream_ad = HopOpaqueField(raw.substr(offset, 
+                                                  HopOpaqueField::LEN));
+        offset += HopOpaqueField::LEN;
+        down_segment_peering_link = HopOpaqueField(raw.substr(offset, 
+                                                   HopOpaqueField::LEN));
+        offset += HopOpaqueField::LEN;
+        for (int i = 0; i < down_segment_info.hops; i++) {
+            down_segment_hops.push_back(HopOpaqueField(raw.substr(offset, 
+                                        HopOpaqueField::LEN)));
+            offset += HopOpaqueField::LEN;
+        }
+        parsed = true;
+    }
 
-        self.parsed = True
+    BitArray pack() {
+        /**
+         * Packs the opaque fields and returns a byte array.
+         */
+        BitArray res;
+        res += up_segment_info.pack();
+        for (int i = 0; i < up_segment_hops.size(); i++) 
+            res += up_segment_hops[i].pack();
+        res += up_segment_peering_link.pack();
+        res += up_segment_upstream_ad.pack();
+        res += down_segment_info.pack();
+        res += down_segment_upstream_ad.pack();
+        res += down_segment_peering_link.pack();
+        for (int i = 0; i < down_segment_hops.size(); i++) 
+            res += down_segment_hops[i].pack();
+        return res;
+    }
 
-    def pack():
-        """
-        Packs the opaque fields and returns a byte array.
-        """
-        data = []
-        data.append(self.up_segment_info.pack())
-        for of in self.up_segment_hops:
-            data.append(of.pack())
-        data.append(self.up_segment_peering_link.pack())
-        data.append(self.up_segment_upstream_ad.pack())
-        data.append(self.down_segment_info.pack())
-        data.append(self.down_segment_upstream_ad.pack())
-        data.append(self.down_segment_peering_link.pack())
-        for of in self.down_segment_hops:
-            data.append(of.pack())
-
-        return b"".join(data)
-
-    def reverse():
+    void reverse() {
         // Reverse hop and info fields.
-        PathBase.reverse()
+        PathBase::reverse();
         // Reverse upstream AD and peering link fields.
-        self.up_segment_upstream_ad, self.down_segment_upstream_ad = \
-            self.down_segment_upstream_ad, self.up_segment_upstream_ad
-        self.up_segment_peering_link, self.down_segment_peering_link = \
-            self.down_segment_peering_link, self.up_segment_peering_link
+        HopOpaqueField temp = up_segment_upstream_ad;
+        up_segment_upstream_ad = down_segment_upstream_ad;
+        down_segment_upstream_ad = temp;
 
-    def get_of(index):
+        temp = up_segment_peering_link; 
+        up_segment_peering_link = down_segment_peering_link;
+        down_segment_peering_link = temp;
+    }
+
+    CommonOpaqueField* get_of(int index) {
         // Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
-        tmp.append(self.up_segment_peering_link)
-        tmp.append(self.up_segment_upstream_ad)
-        tmp.append(self.down_segment_info)
-        tmp.append(self.down_segment_upstream_ad)
-        tmp.append(self.down_segment_peering_link)
-        tmp.extend(self.down_segment_hops)
-        return tmp[index]
+        if (index == 0)
+            return &up_segment_info;
+        if (index <= up_segment_hops.size())
+            return &up_segment_hops[index - 1];
+        if (index == up_segment_hops.size() + 1)
+            return &up_segment_peering_link;
+        if (index == up_segment_hops.size() + 2)
+            return &up_segment_upstream_ad;
+        if (index == up_segment_hops.size() + 3)
+            return &up_segment_upstream_ad;
+        if (index == up_segment_hops.size() + 4)
+            return &down_segment_upstream_ad;
+        if (index == up_segment_hops.size() + 5)
+            return &down_segment_peering_link;
+        if (index <= up_segment_hops.size() + 5 + down_segment_hops.size())
+            return &down_segment_hops[index - up_segment_hops.size() - 6];
+        return NULL;
+    }
 
-    def __str__():
-        s = []
-        s.append("<Peer-Path>:\n<Up-Segment>:\n")
-        s.append(str(self.up_segment_info) + "\n")
-        for of in self.up_segment_hops:
-            s.append(str(of) + "\n")
-        s.append("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
-        s.append("Peering link: " + str(self.up_segment_peering_link) + "\n")
-        s.append("</Up-Segment>\n<Down-Segment>\n")
-        s.append(str(self.down_segment_info) + "\n")
-        s.append("Peering link: " + str(self.down_segment_peering_link) + "\n")
-        s.append("Upstream AD: " + str(self.down_segment_upstream_ad) + "\n")
-        for of in self.down_segment_hops:
-            s.append(str(of) + "\n")
-        s.append("</Down-Segment>\n</Peer-Path>")
+    std::string __str__() {
+        // s = []
+        // s.push_back("<Peer-Path>:\n<Up-Segment>:\n")
+        // s.push_back(str(self.up_segment_info) + "\n")
+        // for of in self.up_segment_hops:
+        //     s.push_back(str(of) + "\n")
+        // s.push_back("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
+        // s.push_back("Peering link: " + str(self.up_segment_peering_link) + "\n")
+        // s.push_back("</Up-Segment>\n<Down-Segment>\n")
+        // s.push_back(str(self.down_segment_info) + "\n")
+        // s.push_back("Peering link: " + str(self.down_segment_peering_link) + "\n")
+        // s.push_back("Upstream AD: " + str(self.down_segment_upstream_ad) + "\n")
+        // for of in self.down_segment_hops:
+        //     s.push_back(str(of) + "\n")
+        // s.push_back("</Down-Segment>\n</Peer-Path>")
 
-        return "".join(s)
-*/
+        // return "".join(s)
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
+        exit(-1);
+        return "";
+    }
+};
 
 class EmptyPath : public PathBase {
     /**
@@ -494,7 +537,7 @@ class EmptyPath : public PathBase {
      */
 public:
     EmptyPath() : PathBase() {}
-    
+
     EmptyPath(const std::string &raw) : PathBase() {
         if (raw.length())
             parse(raw);
@@ -532,194 +575,193 @@ public:
     }
 };
 
-/*
-class PathCombinator(object):
-    """
-    Class that contains functions required to build end-to-end SCION paths.
-    """
 
-    @staticmethod
-    def _build_core_path(up_segment, core_segment, down_segment):
-        """
-        Joins up_, core_ and down_segment into core fullpath. core_segment can
-        be 'None' in case of a intra-ISD core_segment of length 0.
-        Returns object of CorePath class. core_segment (if exists) has to have
-        down-segment orientation.
-        """
-        if (not up_segment or not down_segment or
-                not up_segment.ads or not down_segment.ads):
-            return None
+class PathCombinator {
+    /**
+     * Class that contains functions required to build end-to-end SCION paths.
+     */
 
-        // If we have a core segment, check that the core_segment connects the
-        // up_ and down_segment. Otherwise, check that up- and down-segment meet
-        // at a single core AD.
-        if ((core_segment and
-                (core_segment.get_last_pcbm().ad_id !=
-                 up_segment.get_first_pcbm().ad_id) or
-                (core_segment.get_first_pcbm().ad_id !=
-                 down_segment.get_first_pcbm().ad_id)) or
-                (not core_segment and
-                 (up_segment.get_first_pcbm().ad_id !=
-                  down_segment.get_first_pcbm().ad_id))):
-            return None
+    // static CorePath _build_core_path(up_segment, core_segment, down_segment) {
+    //     /**
+    //      * Joins up_, core_ and down_segment into core fullpath. core_segment can
+    //      * be 'None' in case of a intra-ISD core_segment of length 0.
+    //      * Returns object of CorePath class. core_segment (if exists) has to have
+    //      * down-segment orientation.
+    //      */
+    //     if (not up_segment or not down_segment or
+    //             not up_segment.ads or not down_segment.ads):
+    //         return None
 
-        full_path = CorePath()
-        full_path.up_segment_info = up_segment.iof
-        full_path.up_segment_info.up_flag = True
-        for block in reversed(up_segment.ads):
-            full_path.up_segment_hops.append(copy.deepcopy(block.pcbm.hof))
-        full_path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
+    //     // If we have a core segment, check that the core_segment connects the
+    //     // up_ and down_segment. Otherwise, check that up- and down-segment meet
+    //     // at a single core AD.
+    //     if ((core_segment and
+    //             (core_segment.get_last_pcbm().ad_id !=
+    //              up_segment.get_first_pcbm().ad_id) or
+    //             (core_segment.get_first_pcbm().ad_id !=
+    //              down_segment.get_first_pcbm().ad_id)) or
+    //             (not core_segment and
+    //              (up_segment.get_first_pcbm().ad_id !=
+    //               down_segment.get_first_pcbm().ad_id))):
+    //         return None
 
-        if core_segment:
-            full_path.core_segment_info = core_segment.iof
-            full_path.core_segment_info.up_flag = True
-            for block in reversed(core_segment.ads):
-                full_path.core_segment_hops.append(
-                    copy.deepcopy(block.pcbm.hof))
-            full_path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
+    //     full_path = CorePath()
+    //     full_path.up_segment_info = up_segment.iof
+    //     full_path.up_segment_info.up_flag = True
+    //     for block in reversed(up_segment.ads):
+    //         full_path.up_segment_hops.push_back(copy.deepcopy(block.pcbm.hof))
+    //     full_path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
 
-        full_path.down_segment_info = down_segment.iof
-        full_path.down_segment_info.up_flag = False
-        for block in down_segment.ads:
-            full_path.down_segment_hops.append(copy.deepcopy(block.pcbm.hof))
-        full_path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
-        return full_path
+    //     if core_segment:
+    //         full_path.core_segment_info = core_segment.iof
+    //         full_path.core_segment_info.up_flag = True
+    //         for block in reversed(core_segment.ads):
+    //             full_path.core_segment_hops.push_back(
+    //                 copy.deepcopy(block.pcbm.hof))
+    //         full_path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
 
-    @staticmethod
-    def _join_shortcuts(up_segment, down_segment, point, peer=True):
-        """
-        Joins up_ and down_segment (objects of PCB class) into a shortcut
-        fullpath.
-        Depending on the scenario returns an object of type PeerPath or
-        CrossOverPath class.
-        point: tuple (up_segment_index, down_segment_index) position of
-               peer/xovr link
-        peer:  true for peer, false for xovr path
-        """
-        up_segment = copy.deepcopy(up_segment)
-        down_segment = copy.deepcopy(down_segment)
-        (up_index, dw_index) = point
+    //     full_path.down_segment_info = down_segment.iof
+    //     full_path.down_segment_info.up_flag = False
+    //     for block in down_segment.ads:
+    //         full_path.down_segment_hops.push_back(copy.deepcopy(block.pcbm.hof))
+    //     full_path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
+    //     return full_path
 
-        if peer:
-            path = PeerPath()
-            if up_segment.get_isd() == down_segment.get_isd():
-                info = OpaqueFieldType.INTRATD_PEER
-            else:
-                info = OpaqueFieldType.INTERTD_PEER
-        else:
-            path = CrossOverPath()
-            info = OpaqueFieldType.NON_TDC_XOVR
+    // @staticmethod
+    // def _join_shortcuts(up_segment, down_segment, point, peer=True) {
+    //     *
+    //     Joins up_ and down_segment (objects of PCB class) into a shortcut
+    //     fullpath.
+    //     Depending on the scenario returns an object of type PeerPath or
+    //     CrossOverPath class.
+    //     point: tuple (up_segment_index, down_segment_index) position of
+    //            peer/xovr link
+    //     peer:  true for peer, false for xovr path
+    //     *
+    //     up_segment = copy.deepcopy(up_segment)
+    //     down_segment = copy.deepcopy(down_segment)
+    //     (up_index, dw_index) = point
 
-        path.up_segment_info = up_segment.iof
-        path.up_segment_info.info = info
-        path.up_segment_info.hops -= up_index
-        path.up_segment_info.up_flag = True
-        for i in reversed(range(up_index, len(up_segment.ads))):
-            path.up_segment_hops.append(up_segment.ads[i].pcbm.hof)
-        path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
-        path.up_segment_upstream_ad = up_segment.ads[up_index - 1].pcbm.hof
+    //     if peer:
+    //         path = PeerPath()
+    //         if up_segment.get_isd() == down_segment.get_isd():
+    //             info = OpaqueFieldType.INTRATD_PEER
+    //         else:
+    //             info = OpaqueFieldType.INTERTD_PEER
+    //     else:
+    //         path = CrossOverPath()
+    //         info = OpaqueFieldType.NON_TDC_XOVR
 
-        if peer:
-            up_ad = up_segment.ads[up_index]
-            down_ad = down_segment.ads[dw_index]
-            for up_peer in up_ad.pms:
-                for down_peer in down_ad.pms:
-                    if (up_peer.ad_id == down_ad.pcbm.ad_id and
-                            down_peer.ad_id == up_ad.pcbm.ad_id):
-                        path.up_segment_peering_link = up_peer.hof
-                        path.down_segment_peering_link = down_peer.hof
+    //     path.up_segment_info = up_segment.iof
+    //     path.up_segment_info.info = info
+    //     path.up_segment_info.hops -= up_index
+    //     path.up_segment_info.up_flag = True
+    //     for i in reversed(range(up_index, len(up_segment.ads))):
+    //         path.up_segment_hops.push_back(up_segment.ads[i].pcbm.hof)
+    //     path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
+    //     path.up_segment_upstream_ad = up_segment.ads[up_index - 1].pcbm.hof
 
-        path.down_segment_info = down_segment.iof
-        path.down_segment_info.info = info
-        path.down_segment_info.hops -= dw_index
-        path.down_segment_info.up_flag = False
-        path.down_segment_upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof
-        for i in range(dw_index, len(down_segment.ads)):
-            path.down_segment_hops.append(down_segment.ads[i].pcbm.hof)
-        path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
+    //     if peer:
+    //         up_ad = up_segment.ads[up_index]
+    //         down_ad = down_segment.ads[dw_index]
+    //         for up_peer in up_ad.pms:
+    //             for down_peer in down_ad.pms:
+    //                 if (up_peer.ad_id == down_ad.pcbm.ad_id and
+    //                         down_peer.ad_id == up_ad.pcbm.ad_id):
+    //                     path.up_segment_peering_link = up_peer.hof
+    //                     path.down_segment_peering_link = down_peer.hof
 
-        return path
+    //     path.down_segment_info = down_segment.iof
+    //     path.down_segment_info.info = info
+    //     path.down_segment_info.hops -= dw_index
+    //     path.down_segment_info.up_flag = False
+    //     path.down_segment_upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof
+    //     for i in range(dw_index, len(down_segment.ads)):
+    //         path.down_segment_hops.push_back(down_segment.ads[i].pcbm.hof)
+    //     path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
 
-    @staticmethod
-    def _build_shortcut_path(up_segment, down_segment):
-        """
-        Takes PCB objects (up/down_segment) and tries to combine
-        them as short path
-        """
-        // TODO check if stub ADs are the same...
-        if (not up_segment or not down_segment or
-                not up_segment.ads or not down_segment.ads):
-            return None
-        // looking for xovr and peer points
-        xovrs = []
-        peers = []
-        for up_i in range(1, len(up_segment.ads)):
-            for down_i in range(1, len(down_segment.ads)):
-                up_ad = up_segment.ads[up_i]
-                down_ad = down_segment.ads[down_i]
-                if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
-                    xovrs.append((up_i, down_i))
-                else:
-                    for up_peer in up_ad.pms:
-                        for down_peer in down_ad.pms:
-                            if (up_peer.ad_id == down_ad.pcbm.ad_id and
-                                    down_peer.ad_id == up_ad.pcbm.ad_id):
-                                peers.append((up_i, down_i))
-        // select shortest path xovrs (preferred) or peers
-        xovrs.sort(key=lambda tup: sum(tup))
-        peers.sort(key=lambda tup: sum(tup))
-        if not xovrs and not peers:
-            return None
-        elif xovrs and peers:
-            if sum(peers[-1]) > sum(xovrs[-1]):
-                return PathCombinator._join_shortcuts(up_segment, down_segment,
-                                                      peers[-1], True)
-            else:
-                return PathCombinator._join_shortcuts(up_segment, down_segment,
-                                                      xovrs[-1], False)
-        elif xovrs:
-            return PathCombinator._join_shortcuts(up_segment, down_segment,
-                                                  xovrs[-1],
-                                                  False)
-        else:  // peers only
-            return PathCombinator._join_shortcuts(up_segment, down_segment,
-                                                  peers[-1],
-                                                  True)
+    //     return path
 
-    @staticmethod
-    def build_shortcut_paths(up_segments, down_segments):
-        """
-        Returns a list of all shortcut paths (peering and crossover paths) that
-        can be built using the provided up- and down-segments.
-        """
-        paths = []
-        for up in up_segments:
-            for down in down_segments:
-                path = PathCombinator._build_shortcut_path(up, down)
-                if path and path not in paths:
-                    paths.append(path)
+    // @staticmethod
+    // def _build_shortcut_path(up_segment, down_segment) {
+    //     *
+    //     Takes PCB objects (up/down_segment) and tries to combine
+    //     them as short path
+    //     *
+    //     // TODO check if stub ADs are the same...
+    //     if (not up_segment or not down_segment or
+    //             not up_segment.ads or not down_segment.ads):
+    //         return None
+    //     // looking for xovr and peer points
+    //     xovrs = []
+    //     peers = []
+    //     for up_i in range(1, len(up_segment.ads)):
+    //         for down_i in range(1, len(down_segment.ads)):
+    //             up_ad = up_segment.ads[up_i]
+    //             down_ad = down_segment.ads[down_i]
+    //             if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
+    //                 xovrs.push_back((up_i, down_i))
+    //             else:
+    //                 for up_peer in up_ad.pms:
+    //                     for down_peer in down_ad.pms:
+    //                         if (up_peer.ad_id == down_ad.pcbm.ad_id and
+    //                                 down_peer.ad_id == up_ad.pcbm.ad_id):
+    //                             peers.push_back((up_i, down_i))
+    //     // select shortest path xovrs (preferred) or peers
+    //     xovrs.sort(key=lambda tup: sum(tup))
+    //     peers.sort(key=lambda tup: sum(tup))
+    //     if not xovrs and not peers:
+    //         return None
+    //     elif xovrs and peers:
+    //         if sum(peers[-1]) > sum(xovrs[-1]):
+    //             return PathCombinator._join_shortcuts(up_segment, down_segment,
+    //                                                   peers[-1], True)
+    //         else:
+    //             return PathCombinator._join_shortcuts(up_segment, down_segment,
+    //                                                   xovrs[-1], False)
+    //     elif xovrs:
+    //         return PathCombinator._join_shortcuts(up_segment, down_segment,
+    //                                               xovrs[-1],
+    //                                               False)
+    //     else:  // peers only
+    //         return PathCombinator._join_shortcuts(up_segment, down_segment,
+    //                                               peers[-1],
+    //                                               True)
 
-        return paths
+    // @staticmethod
+    // def build_shortcut_paths(up_segments, down_segments) {
+    //     *
+    //     Returns a list of all shortcut paths (peering and crossover paths) that
+    //     can be built using the provided up- and down-segments.
+    //     *
+    //     paths = []
+    //     for up in up_segments:
+    //         for down in down_segments:
+    //             path = PathCombinator._build_shortcut_path(up, down)
+    //             if path and path not in paths:
+    //                 paths.push_back(path)
 
-    @staticmethod
-    def build_core_paths(up_segment, down_segment, core_segments):
-        """
-        Returns list of all paths that can be built as combination of segments
-        from up_segments, core_segments and down_segments.
-        """
-        paths = []
-        if not core_segments:
-            path = PathCombinator._build_core_path(up_segment, [], down_segment)
-            if path:
-                paths.append(path)
-        else:
-            for core_segment in core_segments:
-                path = PathCombinator._build_core_path(up_segment,
-                                                       core_segment,
-                                                       down_segment)
-                if path and path not in paths:
-                    paths.append(path)
-        return paths
-*/
+    //     return paths
+
+    // @staticmethod
+    // def build_core_paths(up_segment, down_segment, core_segments) {
+    //     *
+    //     Returns list of all paths that can be built as combination of segments
+    //     from up_segments, core_segments and down_segments.
+    //     *
+    //     paths = []
+    //     if not core_segments:
+    //         path = PathCombinator._build_core_path(up_segment, [], down_segment)
+    //         if path:
+    //             paths.push_back(path)
+    //     else:
+    //         for core_segment in core_segments:
+    //             path = PathCombinator._build_core_path(up_segment,
+    //                                                    core_segment,
+    //                                                    down_segment)
+    //             if path and path not in paths:
+    //                 paths.push_back(path)
+    //     return paths
+};
 
 #endif
