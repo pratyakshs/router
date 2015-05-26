@@ -3,6 +3,7 @@
 - [ ] add logging support throughout
 - [ ] some ints need to be 64 bits
 - [x] use std::string instead of char*
+- [ ] pack methods should return std::string
 
 ## topology.cpp
 - [ ] topology dict format

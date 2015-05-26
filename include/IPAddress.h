@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <cassert>
 #include <cstdlib>
+#include "BitArray.h"
 
 #define IPV4LENGTH 32
 #define IPV6LENGTH 128
@@ -46,7 +47,7 @@ public:
 	}
 	virtual std::string to_string() {}
 	virtual uint32_t to_ulong() {}
-	virtual std::string pack() {}
+	virtual BitArray pack() {}
 };
 
 class IPv4Address : public IPAddress {
@@ -88,10 +89,10 @@ public:
 	}
 
 	std::string to_string() {
-		/***UNIMPLEMENTED***/
-		std::cerr << "UNIMPLEMENTED" << std::endl;
-		exit(-1);
-		return "";
+		return std::to_string(address[0].to_ulong()) + "." 
+				+ std::to_string(address[1].to_ulong()) + "."
+				+ std::to_string(address[2].to_ulong()) + "."
+				+ std::to_string(address[3].to_ulong());
 	}
 
 	uint32_t to_ulong() {
@@ -103,10 +104,10 @@ public:
 		return addr;
 	}
 
-	std::string pack() const {
-		string res;
+	BitArray pack() const {
+		std::string res;
 		for(int i = 0; i < 4; i++) 
-			res.push_back(address[i].to_ulong())
+			res.push_back(address[i].to_ulong());
 		return res;
 	}
 };

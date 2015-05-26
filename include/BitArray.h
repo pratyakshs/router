@@ -104,7 +104,7 @@ public:
 		return array.size();
 	}
 
-	BitArray operator+(const BitArray &other) {
+	BitArray operator+(const BitArray &other) const {
 		/**
 		 * The underlying vectors get merged.
 		 */

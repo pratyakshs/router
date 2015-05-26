@@ -98,28 +98,21 @@ public:
 
     }
 
-    int pack(){
-        /****UNIMPLEMENTED****/
-        std::cerr << "pack function unimplemented" << std::endl;
-        exit(-1);
-        return 0;
-        // return (bitstring.pack("uintbe:16, uintbe:64", self.isd_id,
-        //                        self.ad_id).bytes + self.host_addr.packed)
+    BitArray pack() const {
+        BitArray res;
+        res.append(isd_id, 16);
+        res.append(ad_id, 64);
+        res += BitArray(host_addr->pack());
+        return res;
     }
 
-    std::string to_string(){
-        std::cerr << "to_string function unimplemented" << std::endl;
-        exit(-1);
-        return "";
-        // return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
+    std::string to_string() {
+        return "(" + std::to_string(isd_id) + ", " + std::to_string(ad_id) 
+                   + ", " + host_addr->to_string() + ")";
     }
 
-    // int isn't the correct type
-    int get_isd_ad(){
-        std::cerr << "get_isd_ad function unimplemented" << std::endl;
-        exit(-1);
-        return 0;
-        // return ISD_AD(self.isd_id, self.ad_id)
+    std::pair<uint16_t, uint64_t> get_isd_ad() {
+        return std::make_pair(isd_id, ad_id);
     }
 
 };

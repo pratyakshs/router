@@ -68,16 +68,16 @@ class SCIONCommonHdr : public HeaderBase {
     /* Encapsulates the common header for SCION packets.
      */
     int version; // Version of SCION packet.
-    int curr_iof_p; // Pointer inside the packet to the current IOF.
-    int curr_of_p; // Pointer to the current opaque field.
-    int next_hdr; // Type of the next hdr field (IP protocol numbers).
     
 public:
     static const int LEN = 8;
+    int next_hdr; // Type of the next hdr field (IP protocol numbers).
     uint32_t src_addr_len; // Length of the src address.
     uint32_t dst_addr_len; // Length of the dst address.
     uint32_t hdr_len; // Header length including the path.
     uint32_t total_len; // Total length of the packet.
+    int curr_iof_p; // Pointer inside the packet to the current IOF.
+    int curr_of_p; // Pointer to the current opaque field.
 
     SCIONCommonHdr() : HeaderBase() {
         version = 0;
@@ -157,14 +157,14 @@ public:
     }
 
     std::string to_string() {
-        cerr << "***UNIMPLEMENTED***" << endl;
-        exit(-1);
-        // res = ("[CH ver: %u, src len: %u, dst len: %u, total len: %u bytes, "
-        //        "TS: %u, current OF: %u, next hdr: %u, hdr len: %u]") % (
-        //            version, src_addr_len, dst_addr_len,
-        //            total_len, curr_iof_p, curr_of_p,
-        //            next_hdr, hdr_len)
-        // return res
+        return "[CH ver: " + std::to_string(version) + ", src len: "
+                + std::to_string(src_addr_len) + ", dst len: " 
+                + std::to_string(dst_addr_len) + ", total len: " 
+                + std::to_string(total_len) + " bytes, "
+                + "TS: " + std::to_string(curr_iof_p) + ", current OF: " 
+                + std::to_string(curr_of_p) + ", next hdr: " 
+                + std::to_string(next_hdr) + ", hdr len: " 
+                + std::to_string(hdr_len) + "]";
     }
 };
 
@@ -289,7 +289,7 @@ public:
         if (offset == common_hdr.hdr_len)
             path = EmptyPath();
         else {
-            info = InfoOpaqueField(raw.substr(offset, 
+            InfoOpaqueField info(raw.substr(offset, 
                                    InfoOpaqueField::LEN));
             if (info.info == OpaqueFieldType::TDC_XOVR)
                 path = CorePath(raw.substr(offset, 
@@ -314,8 +314,8 @@ public:
         int cur_hdr_type = common_hdr.next_hdr;
         while (cur_hdr_type != 0) {
             BitArray bits(raw.substr(offset, 2));
-            next_hdr_type = bits.get_subarray(0, 8);
-            hdr_len = bits.get_subarray(8, 8);
+            int next_hdr_type = bits.get_subarray(0, 8);
+            int hdr_len = bits.get_subarray(8, 8);
             // logging.info("Found extension hdr of type %u with len %u",
                          // cur_hdr_type, hdr_len)
             if (cur_hdr_type == ICNExtHdr::TYPE) 
@@ -455,16 +455,12 @@ public:
     }
 
     std::string to_string() {
-        // sh_list = []
-        // sh_list.append(str(common_hdr) + "\n")
-        // sh_list.append(str(src_addr) + " >> " + str(dst_addr) + "\n")
-        // sh_list.append(str(path) + "\n")
-        // for ext_hdr in extension_hdrs:
-        //     sh_list.append(str(ext_hdr) + "\n")
-        // return "".join(sh_list)
-        cerr << "***UNIMPLEMENTED***" << endl;
-        exit(-1);
-        return "";
+        std::string res = common_hdr.to_string() + "\n" + src_addr.to_string() 
+                            + " >> " + dst_addr.to_string() + "\n"
+                            + path.to_string() + "\n";
+        for (int i = 0; i < extension_hdrs.size(); i++) 
+            res += extension_hdrs[i].to_string() + "\n";
+        return res;
     }
 };
 

@@ -51,12 +51,12 @@ class OpaqueField {
      * Base class for the different kinds of opaque fields in SCION.
      */
 protected:
-    int info;
     int type;
     bool parsed;
     std::string raw;
 
 public:
+    int info;
     static const int LEN = 8;
     
     OpaqueField() {
