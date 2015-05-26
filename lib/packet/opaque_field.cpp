@@ -71,7 +71,7 @@ public:
          */
     }
 
-    void pack() {
+    void pack() const {
         /* Returns opaque field as 8 byte binary string.
          */
     }
@@ -103,11 +103,11 @@ public:
     }
 
     // TODO test: one __eq__ breaks router when two SOFs in a path are identical
-    bool operator==(OpaqueField &other) {
+    bool operator==(const OpaqueField &other) const {
         return raw == other.raw;
     }
 
-    bool operator!=(OpaqueField &other) {
+    bool operator!=(const OpaqueField &other) {
         return !(*this == other);
     }
 };
@@ -118,7 +118,7 @@ public:
     int ingress_if;
     int egress_if;
     int mac;
-    int timestamp;
+    uint32_t timestamp;
     int isd_id;
     int hops;
     bool up_flag;
@@ -181,7 +181,7 @@ public:
         mac = mac;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Returns HopOpaqueField as 8 byte binary string.
          */
@@ -194,7 +194,7 @@ public:
         return res;
     }
 
-    bool operator==(HopOpaqueField &other) {
+    bool operator==(const HopOpaqueField &other) const {
         return (exp_time == other.exp_time &&
                 ingress_if == other.ingress_if &&
                 egress_if == other.egress_if &&
@@ -268,7 +268,7 @@ public:
         this->hops = hops;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Returns InfoOpaqueFIeld as 8 byte binary string.
          */
@@ -294,7 +294,7 @@ public:
         return "";
     }
 
-    bool operator==(InfoOpaqueField &other) {
+    bool operator==(const InfoOpaqueField &other) const {
         return (this->info == other.info &&
                 this->up_flag == other.up_flag &&
                 this->timestamp == other.timestamp &&
@@ -356,7 +356,7 @@ public:
         this->reserved = reserved;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Returns TRCField as 8 byte binary string.
          */
@@ -377,7 +377,7 @@ public:
         return "";
     }
 
-    bool operator==(TRCField &other) {
+    bool operator==(const TRCField &other) const {
         return (this->info == other.info &&
                 this->trc_version == other.trc_version &&
                 this->if_id == other.if_id);
@@ -391,11 +391,16 @@ class SupportSignatureField : public OpaqueField {
      * The support signature field contains a certificate version (4 bytes), the
      * signature length (2 bytes), and the block size (2 bytes).
      */
+public:
     int cert_chain_version;
     int sig_len;
     int block_size;
-public:
-    SupportSignatureField() : OpaqueField() {
+
+    SupportSignatureField() {
+        SupportSignatureField("");
+    }
+
+    SupportSignatureField(const std::string &raw) : OpaqueField() {
         cert_chain_version = 0;
         sig_len = 0;
         block_size = 0;
@@ -438,7 +443,7 @@ public:
         this->block_size = block_size;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Returns SupportSignatureField as 8 byte binary string.
          */
@@ -459,7 +464,7 @@ public:
         return "";
     }
 
-    bool operator==(SupportSignatureField &other) {
+    bool operator==(const SupportSignatureField &other) const {
         return (cert_chain_version == other.cert_chain_version &&
                 sig_len == other.sig_len &&
                 block_size == other.block_size);
@@ -529,7 +534,7 @@ public:
         this->reserved = reserved;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Returns SupportPeerField as 8 byte binary string.
          */
@@ -553,7 +558,7 @@ public:
         return "";
     }
 
-    bool operator==(SupportPeerField &other) {
+    bool operator==(const SupportPeerField &other) const {
         return (isd_id == other.isd_id &&
                 bwalloc_f == other.bwalloc_f &&
                 bwalloc_r == other.bwalloc_r &&
@@ -637,7 +642,7 @@ public:
         this->bebw_r = bebw_r;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Returns SupportPCBField as 8 byte binary string.
          */
@@ -661,7 +666,7 @@ public:
         return "";
     }
 
-    bool operator==(SupportPCBField &other) {
+    bool operator==(const SupportPCBField &other) const {
         return (isd_id == other.isd_id &&
                 bwalloc_f == other.bwalloc_f &&
                 bwalloc_r == other.bwalloc_r &&

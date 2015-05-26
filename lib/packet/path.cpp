@@ -43,7 +43,7 @@ public:
 
     void parse(const std::string &raw) {}
 
-    BitArray pack() {}
+    BitArray pack() const {}
 
     void reverse() {
         /**
@@ -174,7 +174,7 @@ class CorePath : public PathBase {
         parsed = true;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Packs the opaque fields and returns a byte array.
          */
@@ -330,7 +330,7 @@ public:
         parsed = true;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Packs the opaque fields and returns a byte array.
          */
@@ -453,7 +453,7 @@ public:
         parsed = true;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Packs the opaque fields and returns a byte array.
          */

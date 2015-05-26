@@ -40,7 +40,7 @@ class HeaderBase {
         return;
     }
     
-    virtual BitArray pack() {}
+    virtual BitArray pack() const {}
 
 public:
     virtual int length() {}
@@ -107,7 +107,7 @@ public:
         // pass
     }
 
-    void pack() {
+    void pack() const {
         // pass
     }
 
@@ -149,7 +149,7 @@ public:
         this->raw = raw;
     }
 
-    std::string pack() {
+    std::string pack() const {
         return raw;
     }
 

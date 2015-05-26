@@ -2,7 +2,7 @@
 - [ ] organize cpp files into headers
 - [ ] add logging support throughout
 - [ ] some ints need to be 64 bits
-- [ ] use std::string instead of char*
+- [x] use std::string instead of char*
 
 ## topology.cpp
 - [ ] topology dict format
@@ -21,3 +21,6 @@
 - [ ] have to check if path is not None before accessing any of its members
 - [ ] SCIONPacket::parse: have assigned a char array to payload 
 - [ ] SCIONPacket::pack: should check if payload is of type char* or PacketBase
+
+## pcb.cpp
+- [ ] fix PathConstructionBeacon

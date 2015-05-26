@@ -29,3 +29,6 @@
 
 # build 
 build/*
+
+# temporary files
+temp*

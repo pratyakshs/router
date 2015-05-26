@@ -139,7 +139,7 @@ public:
         parsed = true;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Returns the common header as 8 byte binary string.
          */
@@ -330,7 +330,7 @@ public:
         parsed = true;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         /**
          * Packs the header and returns a byte array.
          */

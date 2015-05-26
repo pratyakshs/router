@@ -58,7 +58,7 @@ public:
         parsed = true;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         BitArray res;
         res.append(next_ext, 8);
         res.append(hdr_len, 8);
@@ -115,7 +115,7 @@ public:
         parsed = true;
     }
 
-    BitArray pack() {
+    BitArray pack() const {
         BitArray res;
         res.append(next_ext, 8);
         res.append(hdr_len, 8);

@@ -17,587 +17,668 @@
  * ===========================================
  */
 
-// import base64
-// import copy
-// import logging
-
-// import bitstring
-// from Crypto.Hash import SHA256
-// from bitstring import BitArray
-
-// from lib.defines import EXP_TIME_UNIT
-// from lib.packet.opaque_field import (
-//     HopOpaqueField,
-//     InfoOpaqueField,
-//     SupportPCBField,
-//     SupportPeerField,
-//     SupportSignatureField,
-//     TRCField,
-// )
-// from lib.packet.path import CorePath
 // from lib.packet.scion import PacketType, SCIONHeader, SCIONPacket
 // from lib.packet.scion_addr import SCIONAddr
 
-/*
-class Marking(object):
-    """
-    Base class for all marking objects.
-    """
-    def __init__(self):
-        self.parsed = False
-        self.raw = None
+#ifndef PCB_CPP
+#define PCB_CPP
 
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        pass
+#include "BitArray.h"
+#include "base64.h"
+#include "opaque_field.cpp"
+#include "path.cpp"
+#include "scion_addr.cpp"
+// #include "scion.cpp"
 
-    def pack(self):
-        """
-        Returns object as a binary string.
-        """
-        pass
+#define MAX_SEGMENT_TTL 86400 // 26 * 60 * 60
+#define EXP_TIME_UNIT 337.5 // MAX_SEGMENT_TTL / 2 ** 8
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.raw == other.raw
-        else:
-            return False
+class Marking {
+    /**
+     * Base class for all marking objects.
+     */
+protected:
+    bool parsed;
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
+public:
+    std::string raw;
 
-    def __hash__(self):
-        return hash(self.raw)
+    Marking() {
+        parsed = false;
+        raw = "";
+    }
 
+    void parse(const std::string &raw) {
+        /**
+         * Populates fields from a raw bytes block.
+         */
+     }
 
-class PCBMarking(Marking):
-    """
-    Packs all fields for a specific PCB marking, which includes: the Autonomous
-    Domain's ID, the SupportSignatureField, the HopOpaqueField, the
-    SupportPCBField, and the revocation tokens for the interfaces
-    included in the HOF.
-    """
-    LEN = 32 + 2 * 32
+    BitArray pack() const {
+        /**
+         * Returns object as a binary string.
+         */
+    }
 
-    def __init__(self, raw=None):
-        Marking.__init__(self)
-        self.ad_id = 0
-        self.ssf = None
-        self.hof = None
-        self.spcbf = None
-        self.ig_rev_token = 32 * b"\x00"
-        self.eg_rev_token = 32 * b"\x00"
-        if raw is not None:
-            self.parse(raw)
+    bool operator==(const Marking &other) const {
+        return raw == other.raw;
+    }
 
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw[:]
-        dlen = len(raw)
-        if dlen < PCBMarking.LEN:
-            logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
-            return
-        bits = BitArray(bytes=raw[:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
-        self.ssf = SupportSignatureField(raw[8:16])
-        self.hof = HopOpaqueField(raw[16:24])
-        self.spcbf = SupportPCBField(raw[24:32])
-        self.ig_rev_token = raw[32:64]
-        self.eg_rev_token = raw[64:96]
-        self.parsed = True
+    bool operator!=(const Marking &other) {
+        return !(*this == other);
+    }
 
-    @classmethod
-    def from_values(cls, ad_id=0, ssf=None, hof=None, spcbf=None,
-                    ig_rev_token=32 * b"\x00", eg_rev_token=32 * b"\x00"):
-        """
-        Returns PCBMarking with fields populated from values.
-
-        :param ad_id: Autonomous Domain's ID.
-        :param ssf: SupportSignatureField object.
-        :param hof: HopOpaqueField object.
-        :param spcbf: SupportPCBField object.
-        :param ig_rev_token: Revocation token for the ingress if
-                             in the HopOpaqueField.
-        :param eg_rev_token: Revocation token for the egress if
-                             in the HopOpaqueField.
-        """
-        pcbm = PCBMarking()
-        pcbm.ad_id = ad_id
-        pcbm.ssf = ssf
-        pcbm.hof = hof
-        pcbm.spcbf = spcbf
-        pcbm.ig_rev_token = ig_rev_token
-        pcbm.eg_rev_token = eg_rev_token
-        return pcbm
-
-    def pack(self):
-        """
-        Returns PCBMarking as a binary string.
-        """
-        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
-                self.ssf.pack() + self.hof.pack() + self.spcbf.pack() +
-                self.ig_rev_token + self.eg_rev_token)
-
-    def __str__(self):
-        pcbm_str = "[PCB Marking ad_id: %d]\n" % (self.ad_id)
-        pcbm_str += "ig_rev_token: %s\neg_rev_token:%s\n" % (self.ig_rev_token,
-                                                             self.eg_rev_token)
-        pcbm_str += str(self.ssf)
-        pcbm_str += str(self.hof) + '\n'
-        pcbm_str += str(self.spcbf)
-        return pcbm_str
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.ad_id == other.ad_id and
-                    self.ssf == other.ssf and
-                    self.hof == other.hof and
-                    self.spcbf == other.spcbf and
-                    self.ig_rev_token == other.ig_rev_token and
-                    self.eg_rev_token == other.eg_rev_token)
-        else:
-            return False
+    int64_t __hash__() {
+        ///? TODO
+        return 0;
+    }
+};
 
 
-class PeerMarking(Marking):
-    """
-    Packs all fields for a specific peer marking.
-    """
-    LEN = 24 + 2 * 32
+class PCBMarking : public Marking {
+    /**
+     * Packs all fields for a specific PCB marking, which includes: the Autonomous
+     * Domain's ID, the SupportSignatureField, the HopOpaqueField, the
+     * SupportPCBField, and the revocation tokens for the interfaces
+     * included in the HOF.
+     */
+public:
+    uint64_t ad_id;
+    SupportSignatureField ssf;
+    HopOpaqueField hof;
+    SupportPCBField spcbf;
+    std::string ig_rev_token;
+    std::string eg_rev_token;
+    static const int LEN = 32 + 2 * 32;
 
-    def __init__(self, raw=None):
-        Marking.__init__(self)
-        self.ad_id = 0
-        self.hof = None
-        self.spf = None
-        self.ig_rev_token = b""
-        self.eg_rev_token = b""
-        if raw is not None:
-            self.parse(raw)
+    PCBMarking() {
+        PCBMarking("");
+    }
 
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw[:]
-        dlen = len(raw)
-        if dlen < PeerMarking.LEN:
-            logging.warning("PM: Data too short for parsing, len: %u", dlen)
-            return
-        bits = BitArray(bytes=raw[0:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
-        self.hof = HopOpaqueField(raw[8:16])
-        self.spf = SupportPeerField(raw[16:24])
-        self.ig_rev_token = raw[24:56]
-        self.eg_rev_token = raw[56:]
-        self.parsed = True
+    PCBMarking(const std::string &raw) : Marking() {
+        ad_id = 0;
+        ig_rev_token = std::string(32, 0);
+        eg_rev_token = std::string(32, 0);
+        if (raw.length()) 
+            parse(raw);
+    }
 
-    @classmethod
-    def from_values(cls, ad_id=0, hof=None, spf=None,
-                    ingress_hash=32 * b"\x00",
-                    egress_hash=32 * b"\x00"):
-        """
-        Returns PeerMarking with fields populated from values.
+    void parse(const std::string &raw) {
+        /**
+         * Populates fields from a raw bytes block.
+         */
+        this->raw = raw;
+        int dlen = raw.length();
+        if (dlen < PCBMarking::LEN) {
+            // logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
+            return;
+        }
+        BitArray bits(raw.substr(0, 8));
+        ad_id = bits.get_subarray(0, 64);
+        ssf = SupportSignatureField(raw.substr(8, 8));
+        hof = HopOpaqueField(raw.substr(16, 8));
+        spcbf = SupportPCBField(raw.substr(24, 8));
+        ig_rev_token = raw.substr(32, 32);
+        eg_rev_token = raw.substr(64, 32);
+        parsed = true;
+    }
 
-        :param ad_id: Autonomous Domain's ID.
-        :param hof: HopOpaqueField object.
-        :param spf: SupportPeerField object.
-        :param ig_rev_token: Revocation token for the ingress if
-                             in the HopOpaqueField.
-        :param eg_rev_token: Revocation token for the egress if
-                             in the HopOpaqueField.
-        """
-        peer_marking = PeerMarking()
-        peer_marking.ad_id = ad_id
-        peer_marking.hof = hof
-        peer_marking.spf = spf
-        peer_marking.ig_rev_token = ingress_hash
-        peer_marking.eg_rev_token = egress_hash
-        return peer_marking
+    PCBMarking(int ad_id, SupportSignatureField ssf, HopOpaqueField hof, 
+               SupportPCBField spcbf, std::string ig_rev_token, 
+               std::string eg_rev_token) : Marking() {
+        /**
+         * Returns PCBMarking with fields populated from values.
+         * 
+         * :param ad_id: Autonomous Domain's ID.
+         * :param ssf: SupportSignatureField object.
+         * :param hof: HopOpaqueField object.
+         * :param spcbf: SupportPCBField object.
+         * :param ig_rev_token: Revocation token for the ingress if
+         *                      in the HopOpaqueField.
+         * :param eg_rev_token: Revocation token for the egress if
+         *                      in the HopOpaqueField.
+         */
+        this->ad_id = ad_id;
+        this->ssf = ssf;
+        this->hof = hof;
+        this->spcbf = spcbf;
+        this->ig_rev_token = ig_rev_token;
+        this->eg_rev_token = eg_rev_token;
+    }
 
-    def pack(self):
-        """
-        Returns PeerMarking as a binary string.
-        """
-        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
-                self.hof.pack() + self.spf.pack() + self.ig_rev_token +
-                self.eg_rev_token)
+    BitArray pack() const {
+        /**
+         * Returns PCBMarking as a binary string.
+         */
+        BitArray res;
+        res.append(ad_id, 64);
+        res += ssf.pack() + hof.pack() + spcbf.pack();
+        res += BitArray(ig_rev_token) + BitArray(eg_rev_token);
+        return res;
+    }
 
-    def __str__(self):
-        pm_str = "[Peer Marking ad_id: %d]\n" % (self.ad_id)
-        pm_str += "ig_rev_token: %s\eg_rev_token:%s\n" % (self.ig_rev_token,
-                                                          self.eg_rev_token)
-        pm_str += str(self.hof) + '\n'
-        pm_str += str(self.spf)
-        return pm_str
+    std::string __str__() {
+        std::string pcbm_str = "[PCB Marking ad_id: " + std::to_string(ad_id) 
+                                                      + "]\n";
+        pcbm_str += "ig_rev_token: " + ig_rev_token + "\neg_rev_token:" 
+                                     + eg_rev_token + "\n";
+        pcbm_str += ssf.__str__();
+        pcbm_str += hof.__str__() + "\n";
+        pcbm_str += spcbf.__str__();
+        return pcbm_str;
+    }
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.ad_id == other.ad_id and
-                    self.hof == other.hof and
-                    self.spf == other.spf and
-                    self.ig_rev_token == other.ig_rev_token and
-                    self.eg_rev_token == other.eg_rev_token)
-        else:
-            return False
-
-
-class ADMarking(Marking):
-    """
-    Packs all fields for a specific Autonomous Domain.
-    """
-    LEN = PCBMarking.LEN
-
-    def __init__(self, raw=None):
-        Marking.__init__(self)
-        self.pcbm = None
-        self.pms = []
-        self.sig = b''
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw[:]
-        dlen = len(raw)
-        if dlen < ADMarking.LEN:
-            logging.warning("AD: Data too short for parsing, len: %u", dlen)
-            return
-        self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
-        raw = raw[PCBMarking.LEN:]
-        while len(raw) > self.pcbm.ssf.sig_len:
-            peer_marking = PeerMarking(raw[:PeerMarking.LEN])
-            self.pms.append(peer_marking)
-            raw = raw[PeerMarking.LEN:]
-        self.sig = raw[:]
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, pcbm=None, pms=None, sig=b''):
-        """
-        Returns ADMarking with fields populated from values.
-
-        @param pcbm: PCBMarking object.
-        @param pms: List of PeerMarking objects.
-        @param sig: Beacon's signature.
-        """
-        ad_marking = ADMarking()
-        pcbm.ssf.sig_len = len(sig)
-        pcbm.ssf.block_size = PCBMarking.LEN + PeerMarking.LEN * len(pms)
-        ad_marking.pcbm = pcbm
-        ad_marking.pms = (pms if pms is not None else [])
-        ad_marking.sig = sig
-        return ad_marking
-
-    def pack(self):
-        """
-        Returns ADMarking as a binary string.
-        """
-        ad_bytes = self.pcbm.pack()
-        for peer_marking in self.pms:
-            ad_bytes += peer_marking.pack()
-        ad_bytes += self.sig
-        return ad_bytes
-
-    def remove_signature(self):
-        """
-        Removes the signature from the AD block.
-        """
-        self.sig = b''
-        self.pcbm.ssf.sig_len = 0
-
-    def __str__(self):
-        ad_str = "[Autonomous Domain]\n"
-        ad_str += str(self.pcbm)
-        for peer_marking in self.pms:
-            ad_str += str(peer_marking)
-        ad_str += ("[Signature: %s]\n" %
-                   base64.b64encode(self.sig).decode('utf-8'))
-        return ad_str
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.pcbm == other.pcbm and
-                    self.pms == other.pms and
-                    self.sig == other.sig)
-        else:
-            return False
+    bool operator==(const PCBMarking &other) const {
+        return (ad_id == other.ad_id &&
+                ssf == other.ssf &&
+                hof == other.hof &&
+                spcbf == other.spcbf &&
+                ig_rev_token == other.ig_rev_token &&
+                eg_rev_token == other.eg_rev_token);
+    }
+};
 
 
-class PathSegment(Marking):
-    """
-    Packs all PathSegment fields for a specific beacon.
-    """
-    LEN = 16 + 32
+class PeerMarking : public Marking {
+    /**
+     * Packs all fields for a specific peer marking.
+     */
+public:
+    static const int LEN = 24 + 2 * 32;
+    uint64_t ad_id;
+    std::string ig_rev_token;
+    std::string eg_rev_token;
+    HopOpaqueField hof;
+    SupportPeerField spf;
 
-    def __init__(self, raw=None):
-        Marking.__init__(self)
-        self.iof = None
-        self.trcf = None
-        self.segment_id = 32 * b"\x00"
-        self.ads = []
-        self.min_exp_time = 2 ** 8 - 1
-        if raw is not None:
-            self.parse(raw)
+    PeerMarking() {
+        PeerMarking("");
+    }
 
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        assert isinstance(raw, bytes)
-        self.size = len(raw)
-        self.raw = raw[:]
-        dlen = len(raw)
-        if dlen < PathSegment.LEN:
-            logging.warning("PathSegment: Data too short for parsing, " +
-                            "len: %u", dlen)
-            return
-        # Populate the info and ROT OFs from the first and second 8-byte blocks
-        # of the segment, respectively.
-        self.iof = InfoOpaqueField(raw[0:8])
-        self.trcf = TRCField(raw[8:16])
-        self.segment_id = raw[16:48]
-        raw = raw[48:]
-        for _ in range(self.iof.hops):
-            pcbm = PCBMarking(raw[:PCBMarking.LEN])
-            ad_marking = ADMarking(raw[:pcbm.ssf.sig_len + pcbm.ssf.block_size])
-            self.add_ad(ad_marking)
-            raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
-        self.parsed = True
+    PeerMarking(const std::string &raw) : Marking() {
+        ad_id = 0;
+        ig_rev_token = "";
+        eg_rev_token = "";
+        if (raw.length()) 
+            parse(raw);
+    }
 
-    def pack(self):
-        """
-        Returns PathSegment as a binary string.
-        """
-        pcb_bytes = self.iof.pack() + self.trcf.pack()
-        pcb_bytes += self.segment_id
-        for ad_marking in self.ads:
-            pcb_bytes += ad_marking.pack()
-        return pcb_bytes
+    void parse(const std::string &raw) {
+        /**
+         * Populates fields from a raw bytes block.
+         */
+        this->raw = raw;
+        int dlen = raw.length();
+        if (dlen < PeerMarking::LEN) {
+            // logging.warning("PM: Data too short for parsing, len: %u", dlen)
+            return;
+        }
+        BitArray bits(raw.substr(0, 8));
+        ad_id = bits.get_subarray(0, 64);
+        hof = HopOpaqueField(raw.substr(8, 8));
+        spf = SupportPeerField(raw.substr(16, 8));
+        ig_rev_token = raw.substr(24, 32);
+        eg_rev_token = raw.substr(56);
+        parsed = true;
+    }
 
-    def add_ad(self, ad_marking):
-        """
-        Appends a new AD block.
-        """
-        if ad_marking.pcbm.hof.exp_time < self.min_exp_time:
-            self.min_exp_time = ad_marking.pcbm.hof.exp_time
-        self.ads.append(ad_marking)
-        self.iof.hops = len(self.ads)
+    PeerMarking(int ad_id, HopOpaqueField hof, SupportPeerField spf,
+                std::string ingress_hash, std::string egress_hash) : Marking() {
+        /**
+         * Returns PeerMarking with fields populated from values.
+         * 
+         * :param ad_id: Autonomous Domain's ID.
+         * :param hof: HopOpaqueField object.
+         * :param spf: SupportPeerField object.
+         * :param ig_rev_token: Revocation token for the ingress if
+         *                      in the HopOpaqueField.
+         * :param eg_rev_token: Revocation token for the egress if
+         *                      in the HopOpaqueField.
+         */
+        this->ad_id = ad_id;
+        this->hof = hof;
+        this->spf = spf;
+        if (ingress_hash.length() == 0) ig_rev_token = std::string(0, 32);
+        else ig_rev_token = ingress_hash;
+        if (egress_hash.length() == 0) eg_rev_token = std::string(0, 32);
+        else eg_rev_token = egress_hash;
+    }
 
-    def remove_signatures(self):
-        """
-        Removes the signature from each AD block.
-        """
-        for ad_marking in self.ads:
-            ad_marking.remove_signature()
+    BitArray pack() const {
+        /**
+         * Returns PeerMarking as a binary string.
+         */
+        BitArray res;
+        res.append(ad_id, 64);
+        res += hof.pack() + spf.pack();
+        res += BitArray(ig_rev_token) + BitArray(eg_rev_token);
+        return res;
+    }
 
-    def get_path(self, reverse_direction=False):
-        """
-        Returns the list of HopOpaqueFields in the path.
-        """
-        hofs = []
-        iof = copy.copy(self.iof)
-        if reverse_direction:
-            ads = list(reversed(self.ads))
-            iof.up_flag = self.iof.up_flag ^ True
-        else:
-            ads = self.ads
-        for ad_marking in ads:
-            hofs.append(ad_marking.pcbm.hof)
-        core_path = CorePath.from_values(iof, hofs)
-        return core_path
+    std::string __str__() {
+        std::string pm_str = "[Peer Marking ad_id: " + std::to_string(ad_id) 
+                                                     + "]\n";
+        pm_str += "ig_rev_token: " + ig_rev_token + "\neg_rev_token:" 
+                                   + eg_rev_token + "\n";
+        pm_str += hof.__str__() + "\n";
+        pm_str += spf.__str__();
+        return pm_str;
+    }
 
-    def get_isd(self):
-        """
-        Returns the ISD ID.
-        """
-        return self.iof.isd_id
+    bool operator==(const PeerMarking &other) const {
+        return (ad_id == other.ad_id &&
+                hof == other.hof &&
+                spf == other.spf &&
+                ig_rev_token == other.ig_rev_token &&
+                eg_rev_token == other.eg_rev_token);
+    }
+};
 
-    def get_last_pcbm(self):
-        """
-        Returns the PCBMarking belonging to the last AD on the path.
-        """
-        if self.ads:
-            return self.ads[-1].pcbm
-        else:
-            return None
+class ADMarking : public Marking {
+    /**
+     * Packs all fields for a specific Autonomous Domain.
+     */
+ public:
+    PCBMarking pcbm;
+    std::string sig;
+    std::vector<PeerMarking> pms;
 
-    def get_first_pcbm(self):
-        """
-        Returns the PCBMarking belonging to the first AD on the path.
-        """
-        if self.ads:
-            return self.ads[0].pcbm
-        else:
-            return None
+    static const int LEN = PCBMarking::LEN;
 
-    def compare_hops(self, other):
-        """
-        Compares the (AD-level) hops of two half-paths. Returns true if all hops
-        are identical and false otherwise.
-        """
-        if not isinstance(other, PathSegment):
-            return False
-        self_hops = [ad.pcbm.ad_id for ad in self.ads]
-        other_hops = [ad.pcbm.ad_id for ad in other.ads]
-        return self_hops == other_hops
+    ADMarking() {
+        ADMarking("");
+    }
 
-    def get_hops_hash(self, hex=False):
-        """
-        Returns the hash over all the interface revocation tokens included in
-        the path segment.
-        """
-        h = SHA256.new()
-        for ad in self.ads:
-            h.update(ad.pcbm.ig_rev_token)
-            h.update(ad.pcbm.eg_rev_token)
-            for pm in ad.pms:
-                h.update(pm.ig_rev_token)
-                h.update(pm.eg_rev_token)
-        if hex:
-            return h.hexdigest()
-        return h.digest()
+    ADMarking(const std::string &raw) : Marking() {
+        sig = "";
+        if (raw.length()) 
+            parse(raw);
+    }
 
-    def get_n_peer_links(self):
-        """
-        Return the total number of peer links in the PathSegment.
-        """
-        n_peer_links = 0
-        for ad in self.ads:
-            n_peer_links += len(ad.pms)
-        return n_peer_links
+    void parse(const std::string &raw) {
+        /**
+         * Populates fields from a raw bytes block.
+         */
+        this->raw = raw;
+        int dlen = raw.length();
+        if (dlen < ADMarking::LEN) {
+            // logging.warning("AD: Data too short for parsing, len: %u", dlen)
+            return;
+        }
+        pcbm = PCBMarking(raw.substr(0, PCBMarking::LEN));
+        std::string raw_ = raw.substr(PCBMarking::LEN);
+        while (raw_.length() > pcbm.ssf.sig_len) {
+            pms.push_back(PeerMarking(raw_.substr(0, PeerMarking::LEN)));
+            raw_ = raw_.substr(PeerMarking::LEN);
+        }
+        sig = raw_;
+        parsed = true;
+    }
 
-    def get_n_hops(self):
-        """
-        Return the number of hops in the PathSegment.
-        """
-        return len(self.ads)
+    ADMarking(PCBMarking &pcbm, std::vector<PeerMarking> &pms, 
+              std::string &sig) : Marking() {
+        /**
+         * Returns ADMarking with fields populated from values.
+         * 
+         * @param pcbm: PCBMarking object.
+         * @param pms: List of PeerMarking objects.
+         * @param sig: Beacon's signature.
+         */
+        pcbm.ssf.sig_len = sig.length();
+        pcbm.ssf.block_size = PCBMarking::LEN + PeerMarking::LEN * pms.size();
+        this->pcbm = pcbm;
+        this->pms = pms;
+        this->sig = sig;
+    };
 
-    def get_timestamp(self):
-        """
-        Returns the creation timestamp of this PathSegment.
-        """
-        return self.iof.timestamp
+    BitArray pack() const {
+        /**
+         * Returns ADMarking as a binary string.
+         */
+        BitArray res = pcbm.pack();
+        for (int i = 0; i < pms.size(); i++) 
+            res += pms[i].pack();
+        res += BitArray(sig);
+        return res;
+    }
 
-    def set_timestamp(self, timestamp):
-        """
-        Updates the timestamp in the IOF.
-        """
-        assert timestamp < 2 ** 32 - 1
-        self.iof.timestamp = timestamp
+    void remove_signature() {
+        /**
+         * Removes the signature from the AD block.
+         */
+        sig = "";
+        pcbm.ssf.sig_len = 0;
+    }
 
-    def get_expiration_time(self):
-        """
-        Returns the expiration time of the path segment in real time.
-        """
-        return (self.iof.timestamp + int(self.min_exp_time * EXP_TIME_UNIT))
+    std::string __str__() {
+        std::string ad_str = "[Autonomous Domain]\n";
+        ad_str += pcbm.__str__();
+        for (int i = 0; i < pms.size(); i++)
+            ad_str += pms[i].__str__();
+        std::string encoded = base64_encode(
+            reinterpret_cast<const unsigned char*>(sig.c_str()), sig.length());
+        ///? decode to utf-8 required?
+        ad_str += "[Signature: " + encoded + "]\n";
+        return ad_str;
+    }
 
-    def get_all_iftokens(self):
-        """
-        Returns all interface revocation tokens included in the path segment.
-        """
-        tokens = []
-        for ad in self.ads:
-            tokens.append(ad.pcbm.ig_rev_token)
-            tokens.append(ad.pcbm.eg_rev_token)
-            for pm in ad.pms:
-                tokens.append(pm.ig_rev_token)
-                tokens.append(pm.eg_rev_token)
-        return tokens
+    bool operator==(const ADMarking &other) const {
+        return (pcbm == other.pcbm &&
+                pms == other.pms &&
+                sig == other.sig);
+    }
+};
 
-    @staticmethod
-    def deserialize(raw):
-        """
-        Deserializes a bytes string into a list of PathSegments.
-        """
-        assert isinstance(raw, bytes)
-        dlen = len(raw)
-        if dlen < PathSegment.LEN:
-            logging.warning("HPB: Data too short for parsing, len: %u", dlen)
-            return
-        pcbs = []
-        while len(raw) > 0:
-            pcb = PathSegment()
-            pcb.iof = InfoOpaqueField(raw[0:8])
-            pcb.trcf = TRCField(raw[8:16])
-            pcb.segment_id = raw[16:48]
-            raw = raw[48:]
-            for _ in range(pcb.iof.hops):
-                pcbm = PCBMarking(raw[:PCBMarking.LEN])
-                ad_marking = ADMarking(raw[:pcbm.ssf.sig_len +
-                                           pcbm.ssf.block_size])
-                pcb.add_ad(ad_marking)
-                raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
-            pcbs.append(pcb)
-        return pcbs
 
-    @staticmethod
-    def serialize(pcbs):
-        """
-        Serializes a list of PathSegments into a bytes string.
-        """
-        pcbs_list = []
-        for pcb in pcbs:
-            pcbs_list.append(pcb.pack())
-        return b"".join(pcbs_list)
+class PathSegment : public Marking {
+    /**
+     * Packs all PathSegment fields for a specific beacon.
+     */
+ public:
+    InfoOpaqueField iof;
+    TRCField trcf;
+    std::string segment_id;
+    std::vector<ADMarking> ads;
+    uint32_t min_exp_time;
+    uint32_t size;
+    static const int LEN = 16 + 32;
 
-    def __str__(self):
-        pcb_str = "[PathSegment]\n"
-        pcb_str += "Segment ID: %s\n" % str(self.segment_id)
-        pcb_str += str(self.iof) + "\n" + str(self.trcf) + "\n"
-        for ad_marking in self.ads:
-            pcb_str += str(ad_marking)
-        return pcb_str
+    PathSegment() {
+        PathSegment("");
+    }
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.iof == other.iof and
-                    self.trcf == other.trcf and
-                    self.ads == other.ads)
-        else:
-            return False
-*/
+    PathSegment(const std::string &raw) : Marking() {
+        segment_id = std::string(0, 32);
+        min_exp_time = (1 << 8 ) - 1;
+        if (raw.length()) 
+            parse(raw);
+    }
 
-class PathConstructionBeacon(SCIONPacket):
-    """
-    PathConstructionBeacon packet, used for path propagation.
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self)
-        self.pcb = None
-        if raw:
-            self.parse(raw)
+    void parse(const std::string &raw) {
+        /**
+        * Populates fields from a raw bytes block.
+         */        
+        this->raw = raw;
+        size = raw.length();
+        int dlen = raw.length();
+        if (dlen < PathSegment::LEN) {
+            // logging.warning("PathSegment: Data too short for parsing, " +
+                            // "len: %u", dlen)
+            return;
+        }
+        // Populate the info and ROT OFs from the first and second 8-byte blocks
+        // of the segment, respectively.
+        iof = InfoOpaqueField(raw.substr(0, 8));
+        trcf = TRCField(raw.substr(8, 8));
+        segment_id = raw.substr(16, 32);
+        std::string raw_ = raw.substr(48);
+        for (int i = 0; i < iof.hops; i++) {
+            PCBMarking pcbm(raw_.substr(0, PCBMarking::LEN));
+            ADMarking ad_marking(raw_.substr(0, 
+                                 pcbm.ssf.sig_len + pcbm.ssf.block_size));
+            add_ad(ad_marking);
+            raw_ = raw_.substr(pcbm.ssf.sig_len + pcbm.ssf.block_size);
+        }
+        parsed = true;
+    }
 
-    def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        self.pcb = PathSegment(self.payload)
+    BitArray pack() const {
+        /**
+         * Returns PathSegment as a binary string.
+         */
+        BitArray res = iof.pack() + trcf.pack();
+        res += BitArray(segment_id);
+        for (int i = 0; i < ads.size(); i++) 
+            res += ads[i].pack();
+        return res;
+    }
 
-    @classmethod
-    def from_values(cls, src_isd_ad, dst, pcb):
-        """
-        Returns a PathConstructionBeacon packet with the values specified.
+    void add_ad(const ADMarking &ad_marking) {
+        /**
+         * Appends a new AD block.
+         */
+        if (ad_marking.pcbm.hof.exp_time < min_exp_time) 
+            min_exp_time = ad_marking.pcbm.hof.exp_time;
+        ads.push_back(ad_marking);
+        iof.hops = ads.size();
+    }
 
-        :param src_isd_ad: Source's 'ISD_AD' namedtuple.
-        :param dst: Destination address (must be a 'SCIONAddr' object)
-        :param pcb: Path Construction PathConstructionBeacon ('PathSegment'
-                    class)
-        """
-        beacon = PathConstructionBeacon()
-        beacon.pcb = pcb
-        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd_ad.ad,
-                                    PacketType.BEACON)
-        beacon.hdr = SCIONHeader.from_values(src, dst)
-        return beacon
+    void remove_signatures() {
+        /**
+         * Removes the signature from each AD block.
+         */
+        for (int i = 0; i < ads.size(); i++) 
+            ads[i].remove_signature();
+    }
 
-    def pack(self):
-        self.payload = self.pcb.pack()
-        return SCIONPacket.pack(self)
+    CorePath get_path(bool reverse_direction = false) {
+        /**
+         * Returns the list of HopOpaqueFields in the path.
+         */
+        std::vector<HopOpaqueField> hofs;
+        InfoOpaqueField iof = this->iof;
+        std::vector<ADMarking> ads;
+        ads.resize(this->ads.size());
+
+        if (reverse_direction) {
+            std::reverse_copy(this->ads.begin(), this->ads.end(), ads.begin());
+            iof.up_flag = this->iof.up_flag ^ true;
+        }
+        else
+            ads = this->ads;
+        for (int i = 0; i < ads.size(); i++) 
+            hofs.push_back(ads[i].pcbm.hof);
+        return CorePath(iof, hofs, InfoOpaqueField(),
+                        std::vector<HopOpaqueField>(), 
+                        InfoOpaqueField(), std::vector<HopOpaqueField>());
+    }
+
+    int get_isd() {
+        /**
+         * Returns the ISD ID.
+         */ 
+        return iof.isd_id;
+    }
+
+    PCBMarking get_last_pcbm() {
+        /**
+         * Returns the PCBMarking belonging to the last AD on the path.
+         */
+        if (ads.size()) 
+            return ads[ads.size() - 1].pcbm;
+        else
+            return PCBMarking();
+        ///? should actually return a null pointer?
+    }
+
+    PCBMarking get_first_pcbm() {
+        /**
+         * Returns the PCBMarking belonging to the first AD on the path.
+         */
+        if (ads.size()) 
+            return ads[0].pcbm;
+        else
+            return PCBMarking();
+    }
+
+    bool compare_hops(const PathSegment &other) {
+        /**
+         * Compares the (AD-level) hops of two half-paths. Returns true if 
+         * all hops are identical and false otherwise.
+         */
+        std::vector<uint64_t> self_hops, other_hops;
+        for (int i = 0; i < ads.size(); i++)
+            self_hops.push_back(ads[i].pcbm.ad_id);
+        for (int i = 0; i < other.ads.size(); i++)
+            other_hops.push_back(other.ads[i].pcbm.ad_id);
+        return self_hops == other_hops;
+    }
+
+    std::string get_hops_hash(bool hex = false) {
+        /**
+         * Returns the hash over all the interface revocation tokens included in
+         * the path segment.
+         */
+        // h = SHA256.new()
+        // for ad in ads:
+        //     h.update(ad.pcbm.ig_rev_token)
+        //     h.update(ad.pcbm.eg_rev_token)
+        //     for pm in ad.pms:
+        //         h.update(pm.ig_rev_token)
+        //         h.update(pm.eg_rev_token)
+        // if (hex) 
+        //     return h.hexdigest()
+        // return h.digest()
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
+        exit(-1);
+        return "";
+    }
+
+    uint32_t get_n_peer_links() {
+        /**
+         * Return the total number of peer links in the PathSegment.
+         */
+        uint32_t n_peer_links = 0;
+        for (int i = 0; i < ads.size(); i++) 
+            n_peer_links += ads[i].pms.size();
+        return n_peer_links;
+    }
+
+    uint32_t get_n_hops() {
+        /**
+         * Return the number of hops in the PathSegment.
+         */
+        return ads.size();
+    }
+
+    int get_timestamp() {
+        /**
+         * Returns the creation timestamp of this PathSegment.
+         */
+        return iof.timestamp;
+    }
+
+    void set_timestamp(uint32_t timestamp) {
+        /**
+         * Updates the timestamp in the IOF.
+         */
+        assert(timestamp < (1ULL << 32) - 1);
+        iof.timestamp = timestamp;
+    }
+
+    int get_expiration_time() {
+        /**
+         * Returns the expiration time of the path segment in real time.
+         */
+        return (iof.timestamp + int(min_exp_time * EXP_TIME_UNIT));
+    }
+
+    std::vector<std::string> get_all_iftokens() {
+        /**
+         * Returns all interface revocation tokens included in the path segment.
+         */
+        std::vector<std::string> tokens;
+        for (int i = 0; i < ads.size(); i++) {
+            tokens.push_back(ads[i].pcbm.ig_rev_token);
+            tokens.push_back(ads[i].pcbm.eg_rev_token);
+            for (int j = 0; j < ads[i].pms.size(); i++) {
+                tokens.push_back(ads[i].pms[j].ig_rev_token);
+                tokens.push_back(ads[i].pms[j].eg_rev_token);
+            }
+        }
+        return tokens;
+    }
+
+    static std::vector<PathSegment> deserialize(std::string raw) {
+        /**
+         * Deserializes a bytes string into a list of PathSegments.
+         */
+        int dlen = raw.length();
+        if (dlen < PathSegment::LEN) {
+            // logging.warning("HPB: Data too short for parsing, len: %u", dlen)
+            return std::vector<PathSegment>();
+        }
+        std::vector<PathSegment> pcbs;
+        while (raw.length() > 0) {
+            PathSegment pcb;
+            pcb.iof = InfoOpaqueField(raw.substr(0, 8));
+            pcb.trcf = TRCField(raw.substr(8, 8));
+            pcb.segment_id = raw.substr(16, 32);
+            raw = raw.substr(48);
+            for (int i = 0; i < pcb.iof.hops; i++) {
+                PCBMarking pcbm(raw.substr(0, PCBMarking::LEN));
+                ADMarking ad_marking(raw.substr(0, pcbm.ssf.sig_len +
+                                           pcbm.ssf.block_size));
+                pcb.add_ad(ad_marking);
+                raw = raw.substr(pcbm.ssf.sig_len + pcbm.ssf.block_size);
+            }
+            pcbs.push_back(pcb);
+        }
+        return pcbs;
+    }
+
+    static std::string serialize(const std::vector<PathSegment> &pcbs) {
+        /**
+         * Serializes a list of PathSegments into a bytes string.
+         */
+        std::string pcbs_list;
+        for (int i = 0; i < pcbs.size(); i++) 
+            pcbs_list += pcbs[i].pack().get_string();
+        return pcbs_list;
+    }
+
+    std::string __str__() {
+        std::string pcb_str = "[PathSegment]\n";
+        pcb_str += "Segment ID: " + segment_id + "\n";
+        pcb_str += iof.__str__() + "\n" + trcf.__str__() + "\n";
+        for (int i = 0; i < ads.size(); i++) 
+            pcb_str += ads[i].__str__();
+        return pcb_str;
+    }
+
+    bool operator==(const PathSegment &other) const {
+        return (iof == other.iof &&
+                trcf == other.trcf &&
+                ads == other.ads);
+    }
+};
+
+// class PathConstructionBeacon : public SCIONPacket {
+//     /**
+//      * PathConstructionBeacon packet, used for path propagation.
+//      */
+//     PathSegment pcb;
+// public:
+//     PathConstructionBeacon : SCIONPacket() {
+//         if (raw.length()) 
+//             parse(raw);
+//     }
+// 
+//     void parse(const std::string &raw) {
+//         SCIONPacket::parse(raw);
+//         pcb = PathSegment(payload);
+//     }
+// 
+//     PathConstructionBeacon(std::pair<uint16_t, uint64_t> src_isd_ad, 
+//                         SCIONAddr &dst, PathSegment &pcb) : SCIONPacket() {
+//         /**
+//          * Returns a PathConstructionBeacon packet with the values specified.
+//          * 
+//          * :param src_isd_ad: Source's 'ISD_AD' namedtuple.
+//          * :param dst: Destination address (must be a 'SCIONAddr' object)
+//          * :param pcb: Path Construction PathConstructionBeacon ('PathSegment'
+//          *             class)
+//          */
+//         this->pcb = pcb;
+//         src = SCIONAddr(src_isd_ad.first, src_isd_ad.second,
+//                                     PacketType::BEACON);
+//         hdr = SCIONHeader(src, dst);
+//     }
+// 
+//     BitArray pack() const {
+//         payload = pcb.pack().get_string();
+//         return SCIONPacket::pack();
+//     }
+// };
+
+#endif // PCB_CPP
