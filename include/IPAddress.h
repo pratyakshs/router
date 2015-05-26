@@ -46,6 +46,7 @@ public:
 	}
 	virtual std::string to_string() {}
 	virtual uint32_t to_ulong() {}
+	virtual std::string pack() {}
 };
 
 class IPv4Address : public IPAddress {
@@ -102,6 +103,12 @@ public:
 		return addr;
 	}
 
+	std::string pack() const {
+		string res;
+		for(int i = 0; i < 4; i++) 
+			res.push_back(address[i].to_ulong())
+		return res;
+	}
 };
 
 class IPv6Address : public IPAddress {
@@ -232,6 +239,17 @@ public:
 			std::cerr << "Cannot convert IPv6 address to ulong\n";
 		exit(-1);
 		return 0;
+	}
+
+	std::string pack() const {
+		std::string res;
+		int val;
+		for(int i = 0; i < 8; i++) {
+			val = address[i].to_ulong();
+			res.push_back(val >> 8);
+			res.push_back(val & 0xFF);
+		}
+		return res;
 	}
 };
 
