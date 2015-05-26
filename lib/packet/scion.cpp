@@ -103,7 +103,8 @@ public:
             parse(raw);
     }
 
-    SCIONCommonHdr(uint32_t src_addr_len, uint32_t dst_addr_len, int next_hdr) {
+    SCIONCommonHdr(const uint32_t &src_addr_len, const uint32_t &dst_addr_len, 
+                   const int &next_hdr) : HeaderBase() {
         /**
          * Constructor for SCIONCommonHdr with the values specified.
          */
@@ -173,7 +174,6 @@ class SCIONHeader : public HeaderBase {
      * The SCION packet header.
      */
     static const int MIN_LEN = 16;  // Update when values are fixed.
-    SCIONCommonHdr common_hdr;
     SCIONAddr src_addr;
     SCIONAddr dst_addr;
     PathBase path;
@@ -181,13 +181,20 @@ class SCIONHeader : public HeaderBase {
     bool path_set;
 
 public:
+    SCIONCommonHdr common_hdr;
+
+    SCIONHeader() {
+        SCIONHeader("");
+    }
+
     SCIONHeader(const std::string &raw) : HeaderBase() {
         if (raw.length())
             parse(raw);
     }
 
-    SCIONHeader(SCIONAddr src, SCIONAddr dst, PathBase path, 
-                vector<ExtensionHeader> ext_hdrs, int next_hdr=0) {
+    SCIONHeader(const SCIONAddr &src, const SCIONAddr &dst, 
+                const PathBase &path, const vector<ExtensionHeader> &ext_hdrs, 
+                int next_hdr=0) : HeaderBase() {
         /**
          * Constructor with the values specified.
          */
@@ -461,6 +468,488 @@ public:
         for (int i = 0; i < extension_hdrs.size(); i++) 
             res += extension_hdrs[i].to_string() + "\n";
         return res;
+    }
+};
+
+class SCIONPacket : public PacketBase {
+    /**
+     * Class for creating and manipulation SCION packets.
+     */
+public:
+    static const int MIN_LEN = 8;
+    int payload_len;
+    SCIONHeader hdr;
+
+    SCIONPacket() {
+        SCIONPacket("");
+    }
+
+    SCIONPacket(const std::string &raw) : PacketBase() {
+        payload_len = 0;
+        if (raw.length())
+            parse(raw);
+    }
+
+    SCIONPacket(const SCIONAddr &src, const SCIONAddr &dst, 
+                const std::string &payload, PathBase path,
+                vector<ExtensionHeader> &ext_hdrs, int next_hdr=0, 
+                int pkt_type=PacketType::DATA) : PacketBase() {
+        /**
+         * Returns a SCIONPacket with the values specified.
+         * :param src: Source address (must be a 'SCIONAddr' object)
+         * :param dst: Destination address (must be a 'SCIONAddr' object)
+         * :param payload: Payload of the packet (either 'bytes' or 'PacketBase')
+         * :param path: The path for this packet.
+         * :param ext_hdrs: A list of extension headers.
+         * :param next_hdr: If 'ext_hdrs' is not None then this must be the type
+         *                  of the first extension header in the list.
+         * :param pkt_type: The type of the packet.
+         */
+        hdr = SCIONHeader(src, dst, path, ext_hdrs, next_hdr);
+        this->payload = payload;
+    }
+
+    void set_payload(const std::string &payload) {
+        PacketBase::set_payload(payload);
+        // Update payload_len and total len of the packet.
+        hdr.common_hdr.total_len -= payload_len;
+        payload_len = payload.length();
+        hdr.common_hdr.total_len += payload_len;
+    }
+
+    void parse(const std::string &raw) {
+        /**
+         * Parses the raw data and populates the fields accordingly.
+         */
+        int dlen = raw.length();
+        this->raw = raw;
+        if (dlen < SCIONPacket::MIN_LEN) {
+            // logging.warning("Data too short to parse SCION packet: "
+                            // "data len %u", dlen)
+            return;
+        }
+        hdr = SCIONHeader(raw);
+        int hdr_len = hdr.length();
+        payload_len = dlen - hdr_len;
+        payload = raw.substr(hdr_len);
+        parsed = true;
+    }
+
+    BitArray pack() const {
+        /**
+         * Packs the header and the payload and returns a byte array.
+         */
+        BitArray res = hdr.pack();
+        res += BitArray(payload);
+        return res;
+    }
+};
+
+class IFIDPacket : public SCIONPacket {
+    /**
+     * IFID packet.
+     */
+public:
+    int reply_id;
+    int request_id;
+
+    IFIDPacket(const std::string &raw) : SCIONPacket() {
+        reply_id = 0;  // Always 0 for initial request.
+        request_id = 0;
+        if (raw.length())
+            parse(raw);
+    }
+
+    void parse(const std::string &raw) {
+        SCIONPacket::parse(raw);
+        reply_id = (payload[0] << 8) | payload[1];
+        request_id = (payload[2] << 8) | payload[3];
+    }
+
+    IFIDPacket(SCIONAddr src, std::pair<uint16_t, uint64_t> dst_isd_ad,
+               int request_id) : SCIONPacket() {
+        /**
+         * Returns a IFIDPacket with the values specified.
+         * @param src: Source address (must be a 'SCIONAddr' object)
+         * @param dst_isd_ad: Destination's 'ISD_AD' namedtuple.
+         * @param request_id: interface number of src (neighboring router).
+         */
+        this->request_id = request_id;
+        SCIONAddr dst(dst_isd_ad.first, dst_isd_ad.second,
+                      &PacketType::IFID_PKT);
+        hdr = SCIONHeader(src, dst, PathBase(), std::vector<ExtensionHeader>());
+        payload = "";
+        payload.push_back(reply_id >> 8);
+        payload.push_back(reply_id & 0xFF);
+        payload.push_back(request_id >> 8);
+        payload.push_back(request_id & 0xFF);
+    }
+
+    BitArray pack() {
+        payload = "";
+        payload.push_back(reply_id >> 8);
+        payload.push_back(reply_id & 0xFF);
+        payload.push_back(request_id >> 8);
+        payload.push_back(request_id & 0xFF);
+        return SCIONPacket::pack();
+    }
+};
+
+class CertChainRequest : public SCIONPacket {
+    /**
+     * Certificate Chain Request packet.
+     * :ivar ingress_if: ingress interface where the beacon comes from.
+     * :type ingress_if: int
+     * :ivar src_isd: ISD identifier of the requester.
+     * :type src_isd: int
+     * :ivar src_ad: AD identifier of the requester.
+     * :type src_ad: int
+     * :ivar isd_id: Target certificate chain's ISD identifier.
+     * :type isd_id: int
+     * :ivar ad_id, ad: Target certificate chain's AD identifier.
+     * :type ad_id: int
+     * :ivar version: Target certificate chain's version.
+     * :type version: int
+     */
+public:
+    int ingress_if;
+    int src_isd;
+    int src_ad;
+    int isd_id;
+    int ad_id;
+    int version;
+
+    CertChainRequest(const std::string &raw) : SCIONPacket() {
+        /**
+         * Initialize an instance of the class CertChainRequest.
+         * :param raw: packed packet.
+         * :type raw: bytes
+         * :returns: the newly created CertChainRequest instance.
+         * :rtype: :class:`CertChainRequest`
+         */
+        ingress_if = 0;
+        src_isd = 0;
+        src_ad = 0;
+        isd_id = 0;
+        ad_id = 0;
+        version = 0;
+        if (raw.length())
+            parse(raw);
+    }
+
+    void parse(const std::string &raw) {
+        /**
+         * Parse a string of bytes and populate the instance variables.
+         * :param raw: packed packet.
+         * :type raw: bytes
+         */
+        SCIONPacket::parse(raw);
+        BitArray bits(payload);
+        ingress_if = bits.get_subarray(0, 16);
+        src_isd = bits.get_subarray(16, 16);
+        src_ad = bits.get_subarray(32, 64);
+        isd_id = bits.get_subarray(96, 16);
+        ad_id = bits.get_subarray(112, 64);
+        version = bits.get_subarray(176, 32);
+    }
+
+    CertChainRequest(IPv4Address* req_type, SCIONAddr src, uint16_t ingress_if, 
+                     uint16_t src_isd, uint64_t src_ad, uint16_t isd_id,
+                     uint64_t ad_id, uint32_t version) : SCIONPacket() {
+        /**
+         * Return a Certificate Chain Request with the values specified.
+         * :param req_type: Either CERT_CHAIN_REQ_LOCAL (request comes from BS or
+         *                  user) or CERT_CHAIN_REQ.
+         * :type req_type: int
+         * :param src: Source address.
+         * :type src: :class:`SCIONAddr`
+         * :param ingress_if: ingress interface where the beacon comes from.
+         * :type ingress_if: int
+         * :param src_isd: ISD identifier of the requester.
+         * :type src_isd: int
+         * :param src_ad: AD identifier of the requester.
+         * :type src_ad: int
+         * :param isd_id: Target certificate chain's ISD identifier.
+         * :type isd_id: int
+         * :param ad_id, ad: Target certificate chain's AD identifier.
+         * :type ad_id: int
+         * :param version: Target certificate chain's version.
+         * :type version: int
+         * :returns: the newly created CertChainRequest instance.
+         * :rtype: :class:`CertChainRequest`
+         */
+        SCIONAddr dst(isd_id, src_ad, req_type);
+        this->hdr = SCIONHeader(src, dst, PathBase(), 
+                                std::vector<ExtensionHeader>());
+        this->ingress_if = ingress_if;
+        this->src_isd = src_isd;
+        this->src_ad = src_ad;
+        this->isd_id = isd_id;
+        this->ad_id = ad_id;
+        this->version = version;
+        BitArray bits;
+        bits.append(ingress_if, 16);
+        bits.append(src_isd, 16);
+        bits.append(src_ad, 64);
+        bits.append(isd_id, 16);
+        bits.append(ad_id, 64);
+        bits.append(version, 32);
+        payload = bits.get_string();
+    }
+};
+
+
+class CertChainReply : public SCIONPacket {
+    /**
+     * Certificate Chain Reply packet.
+     * :cvar MIN_LEN: minimum length of the packet.
+     * :type MIN_LEN: int
+     * :ivar isd_id: Target certificate chain's ISD identifier.
+     * :type isd_id: int
+     * :ivar ad_id: Target certificate chain's AD identifier.
+     * :type ad_id: int
+     * :ivar version: Target certificate chain's version.
+     * :type version: int
+     * :ivar cert_chain: requested certificate chain's content.
+     * :type cert_chain: bytes
+     */
+ public:
+    static const int MIN_LEN = 14;
+    uint16_t isd_id;
+    uint64_t ad_id;
+    uint32_t version;
+    std::string cert_chain;
+
+    CertChainReply() {
+        CertChainReply("");
+    }
+
+    CertChainReply(const std::string &raw) : SCIONPacket() {
+        /**
+         * Initialize an instance of the class CertChainReply.
+         * :param raw: packed packet.
+         * :type raw: bytes
+         * :returns: the newly created CertChainReply instance.
+         * :rtype: :class:`CertChainReply`
+         */
+        isd_id = 0;
+        ad_id = 0;
+        version = 0;
+        cert_chain = "";
+        if (raw.length())
+            parse(raw);
+    }
+
+    void parse(const std::string &raw) {
+        /**
+         * Parse a string of bytes and populate the instance variables.
+         * :param raw: packed packet.
+         * :type raw: bytes
+         */
+        SCIONPacket::parse(raw);
+        BitArray bits(payload);
+        isd_id = bits.get_subarray(0, 16);
+        ad_id = bits.get_subarray(16, 64);
+        version = bits.get_subarray(80, 32);
+        cert_chain = payload.substr(CertChainReply::MIN_LEN);
+    }
+
+    CertChainReply(SCIONAddr dst, uint16_t isd_id, uint64_t ad_id, 
+                   uint32_t version, std::string cert_chain) {
+        /**
+         * Return a Certificate Chain Reply with the values specified.
+         * :param dst: Destination address.
+         * :type dst: :class:`SCIONAddr`
+         * :param isd_id: Target certificate chain's ISD identifier.
+         * :type isd_id: int
+         * :param ad_id, ad: Target certificate chain's AD identifier.
+         * :type ad_id: int
+         * :param version: Target certificate chain's version.
+         * :type version: int
+         * :param cert_chain: requested certificate chain's content.
+         * :type cert_chain: bytes
+         * :returns: the newly created CertChainReply instance.
+         * :rtype: :class:`CertChainReply`
+         */
+        SCIONAddr src(isd_id, ad_id, &PacketType::CERT_CHAIN_REP);
+        hdr = SCIONHeader(src, dst, PathBase(), std::vector<ExtensionHeader>());
+        this->isd_id = isd_id;
+        this->ad_id = ad_id;
+        this->version = version;
+        this->cert_chain = cert_chain;
+        BitArray bits;
+        bits.append(isd_id, 16);
+        bits.append(ad_id, 64);
+        bits.append(version, 32);
+        payload = bits.get_string();
+    }
+};
+
+
+class TRCRequest : public SCIONPacket {
+    /**
+     * TRC Request packet.
+     * :ivar ingress_if: ingress interface where the beacon comes from.
+     * :type ingress_if: int
+     * :ivar src_isd: ISD identifier of the requester.
+     * :type src_isd: int
+     * :ivar src_ad: AD identifier of the requester.
+     * :type src_ad: int
+     * :ivar isd_id: Target TRC's ISD identifier.
+     * :type isd_id: int
+     * :ivar version: Target TRC's version.
+     * :type version: int
+     */
+public:
+    uint16_t ingress_if;
+    uint16_t src_isd;
+    uint64_t src_ad;
+    uint16_t isd_id;
+    uint32_t version;
+
+    TRCRequest(const std::string &raw) : SCIONPacket() {
+        /**
+         * Initialize an instance of the class TRCRequest.
+         * :param raw: packed packet.
+         * :type raw: bytes
+         * :returns: the newly created TRCRequest instance.
+         * :rtype: :class:`TRCRequest`
+         */
+        ingress_if = 0;
+        src_isd = 0;
+        src_ad = 0;
+        isd_id = 0;
+        version = 0;
+        if (raw.length())
+            parse(raw);
+    }
+
+    void parse(const std::string &raw) {
+        /**
+         * Parse a string of bytes and populate the instance variables.
+         * :param raw: packed packet.
+         * :type raw: bytes
+         */
+        SCIONPacket::parse(raw);
+        BitArray bits(payload);
+        ingress_if = bits.get_subarray(0, 16);
+        src_isd = bits.get_subarray(16, 16);
+        src_ad = bits.get_subarray(32, 64);
+        isd_id = bits.get_subarray(96, 16);
+        version = bits.get_subarray(112, 32);
+    }
+
+    TRCRequest(IPv4Address* req_type, SCIONAddr src, uint16_t ingress_if, 
+               uint16_t src_isd, uint64_t src_ad, uint16_t isd_id,
+               uint32_t version) : SCIONPacket() {
+        /**
+         * Return a TRC Request with the values specified.
+         * :param req_type: Either TRC_REQ_LOCAL (request comes from BS or user)
+         *                  or TRC_REQ.
+         * :type req_type: int
+         * :param src: Source address.
+         * :type src: :class:`SCIONAddr`
+         * :param ingress_if: ingress interface where the beacon comes from.
+         * :type ingress_if: int
+         * :param src_isd: ISD identifier of the requester.
+         * :type src_isd: int
+         * :param src_ad: AD identifier of the requester.
+         * :type src_ad: int
+         * :param isd_id: Target TRC's ISD identifier.
+         * :type isd_id: int
+         * :param version: Target TRC's version.
+         * :type version: int
+         * :returns: the newly created TRCRequest instance.
+         * :rtype: :class:`TRCRequest`
+         */
+        SCIONAddr dst(isd_id, src_ad, req_type);
+        hdr = SCIONHeader(src, dst, PathBase(), std::vector<ExtensionHeader>());
+        this->ingress_if = ingress_if;
+        this->src_isd = src_isd;
+        this->src_ad = src_ad;
+        this->isd_id = isd_id;
+        this->version = version;
+        BitArray bits;
+        bits.append(ingress_if, 16);
+        bits.append(src_isd, 16);
+        bits.append(src_ad, 64);
+        bits.append(isd_id, 16);
+        bits.append(version, 32);
+        payload = bits.get_string();
+    }
+};
+
+class TRCReply : public SCIONPacket {
+    /**
+     * TRC Reply packet.
+     * :cvar MIN_LEN: minimum length of the packet.
+     * :type MIN_LEN: int
+     * :ivar isd_id: Target TRC's ISD identifier.
+     * :type isd_id: int
+     * :ivar version: Target TRC's version.
+     * :type version: int
+     * :ivar trc: requested TRC's content.
+     * :type trc: bytes
+     */
+public:
+    static const int MIN_LEN = 6;
+    uint16_t isd_id;
+    uint32_t version;
+    std::string trc;
+
+    TRCReply(const std::string &raw) : SCIONPacket() {
+        /**
+         * Initialize an instance of the class TRCReply.
+         * :param raw: packed packet.
+         * :type raw: bytes
+         * :returns: the newly created TRCReply instance.
+         * :rtype: :class:`TRCReply`
+         */
+        isd_id = 0;
+        version = 0;
+        trc = "";
+        if (raw.length())
+            parse(raw);
+    }
+
+    void parse(const std::string &raw) {
+        /**
+         * Parse a string of bytes and populate the instance variables.
+         * :param raw: packed packet.
+         * :type raw: bytes
+         */
+        SCIONPacket::parse(raw);
+        BitArray bits(payload);
+        isd_id = bits.get_subarray(0, 16);
+        version = bits.get_subarray(16, 32);
+        trc = payload.substr(TRCReply::MIN_LEN);
+    }
+
+    TRCReply(SCIONAddr dst, uint16_t isd_id, uint32_t version, 
+             std::string trc) : SCIONPacket() {
+        /**
+         * Return a TRC Reply with the values specified.
+         * :param dst: Destination address.
+         * :type dst: :class:`SCIONAddr`
+         * :param isd_id: Target TRC's ISD identifier.
+         * :type isd_id: int
+         * :param version: Target TRC's version.
+         * :type version: int
+         * :param trc: requested TRC's content.
+         * :type trc: bytes
+         * :returns: the newly created TRCReply instance.
+         * :rtype: :class:`TRCReply`
+         */
+        // TODO: revise TRC/Cert request/replies
+        SCIONAddr src(dst.isd_id, dst.ad_id, &PacketType::TRC_REP);
+        hdr = SCIONHeader(src, dst, PathBase(), std::vector<ExtensionHeader>());
+        this->isd_id = isd_id;
+        this->version = version;
+        this->trc = trc;
+        BitArray bits;
+        bits.append(isd_id, 16);
+        bits.append(version, 32);
+        payload = bits.get_string() + trc;
     }
 };
 

@@ -53,8 +53,8 @@ public:
 };
 
 class PacketBase {
-    /* Base class for packets.
-     * 
+    /** 
+     * Base class for packets.
      * :ivar parsed: whether or not the packet has been parsed.
      * :vartype parsed: bool
      * :ivar raw: the raw bytes of the packet contents.
@@ -64,11 +64,12 @@ class PacketBase {
      * :ivar payload: the packet payload
      * :vartype payload: std::string
      */
-    HeaderBase *hdr;
-    std::string payload;
 public:
     bool parsed;
     std::string raw;
+    HeaderBase *hdr;
+    std::string payload;
+
     PacketBase() {
         parsed = false;
         raw = "";
@@ -158,7 +159,6 @@ public:
     }
 
     long long __hash__() {
-        // return hash(raw);
         return 0;
     }
 

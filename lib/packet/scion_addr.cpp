@@ -59,10 +59,10 @@ public:
     }
 
     // def from_values(cls, isd_id, ad_id, host_addr):
-    SCIONAddr(uint16_t isd_id, uint64_t ad_id, IPv4Address * host_addr) {
+    SCIONAddr(uint16_t isd_id, uint64_t ad_id, const IPv4Address * host_addr) {
         this->isd_id = isd_id;
         this->ad_id = ad_id;
-        this->host_addr = host_addr;
+        this->host_addr = (IPAddress*)host_addr; ///? hacky
         int host_addr_len;
         if (this->host_addr->version == 4)
             host_addr_len = IPV4LENGTH; // 8
