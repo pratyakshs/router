@@ -150,7 +150,7 @@ public:
     static void send(type packet, string dst, int dst_port=SCION_UDP_PORT){
         /* Send *packet* to *dst* (to port *dst_port*) using the local socket.
          * Calling ``packet.pack()`` should return :class:`bytes`, and
-         * ``dst.__str__()`` should return a string representing an IPv4 address.
+         * ``dst.to_string()`` should return a string representing an IPv4 address.
          *
          * :param packet: the packet to be sent to the destination.
          * :type packet:

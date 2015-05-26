@@ -107,8 +107,8 @@ public:
         //                        self.ad_id).bytes + self.host_addr.packed)
     }
 
-    std::string __str__(){
-        std::cerr << "__str__ function unimplemented" << std::endl;
+    std::string to_string(){
+        std::cerr << "to_string function unimplemented" << std::endl;
         exit(-1);
         return "";
         // return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)

@@ -47,7 +47,7 @@ public:
         port = SCION_UDP_PORT;
     }
 
-    string __str__(){
+    string to_string(){
         return addr + to_string(port);
     }
 };
@@ -157,7 +157,7 @@ public:
     void send(PakcetType packet, NextHop next_hop, bool use_local_socket = true) {
         /* 
          * Sends packet to next_hop.addr (class of that object must implement
-         * __str__ which returns IPv4 addr) using next_hop.port and local or remote
+         * to_string which returns IPv4 addr) using next_hop.port and local or remote
          * socket.
 		 * 
          * :param packet: the

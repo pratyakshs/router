@@ -25,7 +25,7 @@
 class HeaderBase {
     /* Base class for headers.
      * 
-     * Each header class must implement parse, pack and __str__.
+     * Each header class must implement parse, pack and to_string.
      * 
      * :ivar parsed: whether or not the header has been parsed.
      * :vartype parsed: bool
@@ -45,10 +45,10 @@ class HeaderBase {
 public:
     virtual int length() {}
 
-    virtual std::string __str__() {}
+    virtual std::string to_string() {}
 
     virtual std::string __repr__() {
-        return __str__();
+        return to_string();
     }
 };
 
@@ -115,12 +115,12 @@ public:
         return hdr->length() + payload.length();
     }
 
-    std::string __str__() {
-        return hdr->__str__() + "\n" + "Payload:\n" + payload;
+    std::string to_string() {
+        return hdr->to_string() + "\n" + "Payload:\n" + payload;
     }
 
     std::string __repr__() {
-        return __str__();
+        return to_string();
     }
 
     long long __hash__() {

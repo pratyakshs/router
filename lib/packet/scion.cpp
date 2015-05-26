@@ -156,7 +156,7 @@ public:
         return res;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         cerr << "***UNIMPLEMENTED***" << endl;
         exit(-1);
         // res = ("[CH ver: %u, src len: %u, dst len: %u, total len: %u bytes, "
@@ -454,7 +454,7 @@ public:
         return length;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         // sh_list = []
         // sh_list.append(str(common_hdr) + "\n")
         // sh_list.append(str(src_addr) + " >> " + str(dst_addr) + "\n")

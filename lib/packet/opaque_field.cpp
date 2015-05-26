@@ -94,12 +94,12 @@ public:
         return !std::bitset<8>(info)[4];
     }
 
-    std::string __str__() {
+    std::string to_string() {
         return "";
     }
 
     std::string __repr__() {
-        return __str__();
+        return to_string();
     }
 
     // TODO test: one __eq__ breaks router when two SOFs in a path are identical
@@ -201,7 +201,7 @@ public:
                 mac == other.mac);
     }
 
-    std::string __str__() {
+    std::string to_string() {
         return "[Hop OF info: " + std::to_string(info) + ", exp_time: " 
                + std::to_string(exp_time) + ", ingress if: " 
                + std::to_string(ingress_if) + ", egress if: " 
@@ -281,7 +281,7 @@ public:
         return res;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         // iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
         //            (self.info, self.up_flag, self.timestamp, self.isd_id,
         //             self.hops))
@@ -368,7 +368,7 @@ public:
         return res;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         // trcf_str = ("[TRC OF info: %x, TRCv: %u, IF ID: %u]\n" %
                     // (self.info, self.trc_version, self.if_id))
         // return trcf_str
@@ -454,7 +454,7 @@ public:
         return res;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         // ssf_str = ("[Support Signature OF cert_chain_version: %x, "
         //            "sig_len: %u, block_size: %u]\n" % (
         //                self.cert_chain_version, self.sig_len, self.block_size))
@@ -547,7 +547,7 @@ public:
         return res;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         // spf_str = ("[Support Peer OF TD ID: %x, bwalloc_f: %u, "
         //            "bwalloc_r: %u, bw_class: %u]\n" % (
         //                self.isd_id, self.bwalloc_f, self.bwalloc_r,
@@ -657,7 +657,7 @@ public:
         return res;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         // spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %
         //              (self.isd_id, self.bwalloc_f, self.bwalloc_r))
         // return spcbf_str

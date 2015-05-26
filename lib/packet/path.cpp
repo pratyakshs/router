@@ -108,10 +108,10 @@ public:
         return NULL;
     }
 
-    std::string __str__() { return ""; }
+    std::string to_string() { return ""; }
 
     std::string __repr__() {
-        return __str__();
+        return to_string();
     }
 };
 
@@ -246,7 +246,7 @@ class CorePath : public PathBase {
         down_segment_hops = dw_hops;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         // s = []
         // s.push_back("<Core-Path>:\n")
 
@@ -373,7 +373,7 @@ public:
         return NULL;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         // s = []
         // s.push_back("<CrossOver-Path>:\n<Up-Segment>:\n")
         // s.push_back(str(self.up_segment_info) + "\n")
@@ -505,7 +505,7 @@ public:
         return NULL;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         // s = []
         // s.push_back("<Peer-Path>:\n<Up-Segment>:\n")
         // s.push_back(str(self.up_segment_info) + "\n")
@@ -570,7 +570,7 @@ public:
         return &up_segment_info;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         return "<Empty-Path></Empty-Path>";
     }
 };

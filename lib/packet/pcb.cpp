@@ -157,14 +157,14 @@ public:
         return res;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         std::string pcbm_str = "[PCB Marking ad_id: " + std::to_string(ad_id) 
                                                       + "]\n";
         pcbm_str += "ig_rev_token: " + ig_rev_token + "\neg_rev_token:" 
                                      + eg_rev_token + "\n";
-        pcbm_str += ssf.__str__();
-        pcbm_str += hof.__str__() + "\n";
-        pcbm_str += spcbf.__str__();
+        pcbm_str += ssf.to_string();
+        pcbm_str += hof.to_string() + "\n";
+        pcbm_str += spcbf.to_string();
         return pcbm_str;
     }
 
@@ -255,13 +255,13 @@ public:
         return res;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         std::string pm_str = "[Peer Marking ad_id: " + std::to_string(ad_id) 
                                                      + "]\n";
         pm_str += "ig_rev_token: " + ig_rev_token + "\neg_rev_token:" 
                                    + eg_rev_token + "\n";
-        pm_str += hof.__str__() + "\n";
-        pm_str += spf.__str__();
+        pm_str += hof.to_string() + "\n";
+        pm_str += spf.to_string();
         return pm_str;
     }
 
@@ -350,11 +350,11 @@ class ADMarking : public Marking {
         pcbm.ssf.sig_len = 0;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         std::string ad_str = "[Autonomous Domain]\n";
-        ad_str += pcbm.__str__();
+        ad_str += pcbm.to_string();
         for (int i = 0; i < pms.size(); i++)
-            ad_str += pms[i].__str__();
+            ad_str += pms[i].to_string();
         std::string encoded = base64_encode(
             reinterpret_cast<const unsigned char*>(sig.c_str()), sig.length());
         ///? decode to utf-8 required?
@@ -627,12 +627,12 @@ class PathSegment : public Marking {
         return pcbs_list;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         std::string pcb_str = "[PathSegment]\n";
         pcb_str += "Segment ID: " + segment_id + "\n";
-        pcb_str += iof.__str__() + "\n" + trcf.__str__() + "\n";
+        pcb_str += iof.to_string() + "\n" + trcf.to_string() + "\n";
         for (int i = 0; i < ads.size(); i++) 
-            pcb_str += ads[i].__str__();
+            pcb_str += ads[i].to_string();
         return pcb_str;
     }
 

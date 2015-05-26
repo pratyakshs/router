@@ -69,7 +69,7 @@ public:
         return 8;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         return "[EH next hdr: " + std::to_string(next_ext) 
                + ", len: " + std::to_string(hdr_len) + "]";
     }
@@ -128,7 +128,7 @@ public:
         return ICNExtHdr::MIN_LEN;
     }
 
-    std::string __str__() {
+    std::string to_string() {
         return "[ICN EH next hdr: " + std::to_string(next_ext) + ", len: " 
                + std::to_string(hdr_len) + ", fwd_flag: " 
                + std::to_string(fwd_flag) + "]";

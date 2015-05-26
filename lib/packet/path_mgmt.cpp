@@ -208,7 +208,7 @@ class LeaseInfo(PayloadBase):
 
         return info
 
-    def __str__(self):
+    def to_string(self):
         return ("leaser: (%d, %d) seg_type: %d expires: %d ID:%s" %
                 self.isd_id, self.ad_id, self.seg_type, self.exp_time,
                 self.seg_id)
@@ -260,7 +260,7 @@ class PathSegmentLeases(PayloadBase):
 
         return pkt
 
-    def __str__(self):
+    def to_string(self):
         s = "[PathSegmentLeases: N = %d]\n" % self.nleases
         for (isd, ad, ts, seg_id) in self.leases:
             s += "leaser: (%d, %d) expires: %d ID:%s\n" % (isd, ad, ts, seg_id)
@@ -358,7 +358,7 @@ class RevocationInfo(PayloadBase):
 
         return info
 
-    def __str__(self):
+    def to_string(self):
         s = ("[Revocation type: %d, incl_seg_id: %d, incl_hop: %d]\n" %
              (self.rev_type, self.incl_seg_id, self.incl_hop))
         if self.incl_seg_id:
@@ -415,7 +415,7 @@ class RevocationPayload(PayloadBase):
         assert isinstance(info, RevocationInfo)
         self.rev_infos.append(info)
 
-    def __str__(self):
+    def to_string(self):
         return "".join([str(info) + "\n" for info in self.rev_infos])
 
 
@@ -481,6 +481,6 @@ class PathMgmtPacket(SCIONPacket):
         pkt.payload = payload
         return pkt
 
-    def __str__(self):
+    def to_string(self):
         return (("[PathMgmtPacket type: %d]\n" % self.type) + str(self.hdr) +
                 "\n" + str(self.payload))
