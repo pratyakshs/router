@@ -23,159 +23,158 @@
 #include <thread>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "scion_elem.h"
-#include "topology.h"
-using namespace std;
+#include "scion_elem.cpp"
+// #include "topology.h"
 
 #define IFID_PKT_TOUT 0.5
 
 class NextHop {
-    /* Simple class for next hop representation. Object of this class corresponds
+    /**
+     * Simple class for next hop representation. Object of this class corresponds
      * to SCION Packet and is processed within routing context.
      *  :ivar addr: the next hop address.
      *  :vartype addr: str
      *  :ivar port: the next hop port number.
      *  :vartype port: int
      */
-
-    string addr;
+    std::string addr;
     int port;
 
 public:
-    NextHop(){
+    NextHop() {
         addr = "";
         port = SCION_UDP_PORT;
     }
 
-    string to_string(){
-        return addr + to_string(port);
+    std::string to_string() {
+        return addr + std::to_string(port);
     }
 };
 
-class Router : public SCIONElement {
-    /* 
-     * The SCION Router.
-	 * 
-     * :ivar addr: the router address.
-     * :vartype addr: :class:`SCIONAddr`
-     * :ivar topology: the AD topology as seen by the router.
-     * :vartype topology: :class:`Topology`
-     * :ivar config: the configuration of the router.
-     * :vartype config: :class:`Config`
-     * :ivar ifid2addr: a map from interface identifiers to the corresponding
-     *    border router addresses in the server's AD.
-     * :vartype ifid2addr: dict
-     * :ivar interface: the router's inter-AD interface, if any.
-     * :vartype interface: :class:`lib.topology.InterfaceElement`
-     * :ivar pre_ext_handlers: a map of extension header types to handlers for
-     *     those extensions that execute before routing.
-     * :vartype pre_ext_handlers: dict
-     * :ivar post_ext_handlers: a map of extension header types to handlers for
-     *     those extensions that execute after routing.
-     * :vartype post_ext_handlers: dict
-     */
-
-    SCIONAddr addr;
-    Topology topology;
-    Constructor config;
-    map<??, SCIONAddr> ifid2addr;
-    InterfaceElement interface;
-    map<??,??> pre_ext_handlers;
-    map<??,??> post_ext_handlers;
-    int _remote_socket;
-    vector<int> _sockets;
-
-public:
-    Router(IPv4Address addr, string topo_file, string config_file, 
-    		map<??,??> pre_ext_handlers, map<??,??> post_ext_handlers=None) 
-    		: SCIONElement(addr, topo_file, config_file) {
-        /*
-         * Constructor.
-		 * 
-         * :param addr: the router address.
-         * :type addr: :class:`ipaddress.IPv4Address`
-         * :param topo_file: the topology file name.
-         * :type topo_file: str
-         * :param config_file: the configuration file name.
-         * :type config_file: str
-         * :param pre_ext_handlers: a map of extension header types to handlers
-         *     for those extensions that execute before routing.
-         * :type pre_ext_handlers: dict
-         * :param post_ext_handlers: a map of extension header types to handlers
-         *     for those extensions that execute after routing.
-         * :type post_ext_handlers: dict
-		 */
-        
-        ////? this->interface = None
-        vector<??> all_edge_routers = topology.get_all_edge_routers();
-        bool interface_set = false;
-        for (auto it = all_edge_routers.begin(); it != all_edge_routers.end(); it++) {
-            if (it->addr == this->addr.host_addr) {
-                interface = it->interface;
-                interface_set = true;
-                break;
-            }
-        }
-
-        assert(interface_set == true);
-        //// logging.info("Interface: %s", this->interface.__dict__)
-
-        this->pre_ext_handlers = pre_ext_handlers;
-        // make sure that all arguments are passed properly to the constructor
-        this->post_ext_handlers = post_ext_handlers;
-
-        _remote_socket = socket(AF_INET, SOCK_DGRAM, 0);
-        const char val = 1;
-        int err = setsockopt(_remote_socket, SOL_SOCKET, SO_REUSEADDR, 
-        			(char *)&val, sizeof(val));
-        assert(err == 0);
-
-        struct sockaddr_in saddr; 
-        bzero((char *)&saddr, sizeof(saddr));
-        saddr.sin_family = AF_INET;
-        saddr.sin_port = interface.udp_port;
-        saddr.sin_addr.s_addr = interface.addr->to_ulong();
-        saddr.sin_port = htons(interface->udp_port);
-        err = bind(_remote_socket, (struct sockaddr *) &saddr,
-        			sizeof(saddr));
-        assert(err == 0);
-        this->_sockets.push_back(this->_remote_socket);
-
-        logging.info("IP %s:%u", this->interface.addr, this->interface.udp_port)
-    }
-
-    void run() {
-        thread t(sync_interface);
-        t.detach();
-        ///? should run/start be called explicitly?
-
-        // threading.Thread(target=this->sync_interface, daemon=True).start()
-
-        SCIONElement::run();
-    }
-
-    void send(PakcetType packet, NextHop next_hop, bool use_local_socket = true) {
-        /* 
-         * Sends packet to next_hop.addr (class of that object must implement
-         * to_string which returns IPv4 addr) using next_hop.port and local or remote
-         * socket.
-		 * 
-         * :param packet: the
-         * :type packet:
-         * :param next_hop: the next hop of the packet.
-         * :type next_hop: :class:`NextHop`
-         * :param use_local_socket: whether to use the local socket (as opposed to
-         *     a remote socket).
-         * :type use_local_socket: bool
-        */
-        logging.info("Sending packet to %s", next_hop);
-        this->handle_extensions(packet, next_hop, false);
-        if (use_local_socket)
-            SCIONElement::send(packet, next_hop.addr, next_hop.port);
-        else
-            _remote_socket.sendto(packet.pack(), (str(next_hop.addr),
-                next_hop.port));
-    }
+// class Router : public SCIONElement {
+//     /**
+//      * The SCION Router.
+// 	   * 
+//      * :ivar addr: the router address.
+//      * :vartype addr: :class:`SCIONAddr`
+//      * :ivar topology: the AD topology as seen by the router.
+//      * :vartype topology: :class:`Topology`
+//      * :ivar config: the configuration of the router.
+//      * :vartype config: :class:`Config`
+//      * :ivar ifid2addr: a map from interface identifiers to the corresponding
+//      *    border router addresses in the server's AD.
+//      * :vartype ifid2addr: dict
+//      * :ivar interface: the router's inter-AD interface, if any.
+//      * :vartype interface: :class:`lib.topology.InterfaceElement`
+//      * :ivar pre_ext_handlers: a map of extension header types to handlers for
+//      *     those extensions that execute before routing.
+//      * :vartype pre_ext_handlers: dict
+//      * :ivar post_ext_handlers: a map of extension header types to handlers for
+//      *     those extensions that execute after routing.
+//      * :vartype post_ext_handlers: dict
+//      */
+// 
+//     SCIONAddr addr;
+//     Topology topology;
+//     Constructor config;
+//     map<??, SCIONAddr> ifid2addr;
+//     InterfaceElement interface;
+//     map<??,??> pre_ext_handlers;
+//     map<??,??> post_ext_handlers;
+//     int _remote_socket;
+//     vector<int> _sockets;
+// 
+// public:
+//     Router(IPv4Address addr, string topo_file, string config_file, 
+//     		map<??,??> pre_ext_handlers, map<??,??> post_ext_handlers=None) 
+//     		: SCIONElement(addr, topo_file, config_file) {
+//         /*
+//          * Constructor.
+// 		 * 
+//          * :param addr: the router address.
+//          * :type addr: :class:`ipaddress.IPv4Address`
+//          * :param topo_file: the topology file name.
+//          * :type topo_file: str
+//          * :param config_file: the configuration file name.
+//          * :type config_file: str
+//          * :param pre_ext_handlers: a map of extension header types to handlers
+//          *     for those extensions that execute before routing.
+//          * :type pre_ext_handlers: dict
+//          * :param post_ext_handlers: a map of extension header types to handlers
+//          *     for those extensions that execute after routing.
+//          * :type post_ext_handlers: dict
+// 		 */
+//         
+//         ////? this->interface = None
+//         vector<??> all_edge_routers = topology.get_all_edge_routers();
+//         bool interface_set = false;
+//         for (auto it = all_edge_routers.begin(); it != all_edge_routers.end(); it++) {
+//             if (it->addr == this->addr.host_addr) {
+//                 interface = it->interface;
+//                 interface_set = true;
+//                 break;
+//             }
+//         }
+// 
+//         assert(interface_set == true);
+//         //// logging.info("Interface: %s", this->interface.__dict__)
+// 
+//         this->pre_ext_handlers = pre_ext_handlers;
+//         // make sure that all arguments are passed properly to the constructor
+//         this->post_ext_handlers = post_ext_handlers;
+// 
+//         _remote_socket = socket(AF_INET, SOCK_DGRAM, 0);
+//         const char val = 1;
+//         int err = setsockopt(_remote_socket, SOL_SOCKET, SO_REUSEADDR, 
+//         			(char *)&val, sizeof(val));
+//         assert(err == 0);
+// 
+//         struct sockaddr_in saddr; 
+//         bzero((char *)&saddr, sizeof(saddr));
+//         saddr.sin_family = AF_INET;
+//         saddr.sin_port = interface.udp_port;
+//         saddr.sin_addr.s_addr = interface.addr->to_ulong();
+//         saddr.sin_port = htons(interface->udp_port);
+//         err = bind(_remote_socket, (struct sockaddr *) &saddr,
+//         			sizeof(saddr));
+//         assert(err == 0);
+//         this->_sockets.push_back(this->_remote_socket);
+// 
+//         logging.info("IP %s:%u", this->interface.addr, this->interface.udp_port)
+//     }
+// 
+//     void run() {
+//         thread t(sync_interface);
+//         t.detach();
+//         ///? should run/start be called explicitly?
+// 
+//         // threading.Thread(target=this->sync_interface, daemon=True).start()
+// 
+//         SCIONElement::run();
+//     }
+// 
+//     void send(PakcetType packet, NextHop next_hop, bool use_local_socket = true) {
+//         /* 
+//          * Sends packet to next_hop.addr (class of that object must implement
+//          * to_string which returns IPv4 addr) using next_hop.port and local or remote
+//          * socket.
+// 		 * 
+//          * :param packet: the
+//          * :type packet:
+//          * :param next_hop: the next hop of the packet.
+//          * :type next_hop: :class:`NextHop`
+//          * :param use_local_socket: whether to use the local socket (as opposed to
+//          *     a remote socket).
+//          * :type use_local_socket: bool
+//         */
+//         logging.info("Sending packet to %s", next_hop);
+//         this->handle_extensions(packet, next_hop, false);
+//         if (use_local_socket)
+//             SCIONElement::send(packet, next_hop.addr, next_hop.port);
+//         else
+//             _remote_socket.sendto(packet.pack(), (str(next_hop.addr),
+//                 next_hop.port));
+//     }
 
    //  def handle_extensions(self, spkt, next_hop, pre_routing_phase) {
    //      /* 
@@ -551,24 +550,24 @@ public:
    //              logging.debug("DATA type %s, %s", ptype, spkt)
    //          this->process_packet(spkt, next_hop, from_local_ad, ptype)
    //  }
-};
+// };
 
 int main() {
     /*
      * Initializes and starts router.
      */
-    init_logging();
-    handle_signals();
-    if len(sys.argv) != 4:
-        logging.error("run: %s IP topo_file conf_file", sys.argv[0])
-        sys.exit();
+    // init_logging();
+    // handle_signals();
+    // if len(sys.argv) != 4:
+    //     logging.error("run: %s IP topo_file conf_file", sys.argv[0])
+    //     sys.exit();
 
-    router = Router(IPv4Address(sys.argv[1]), sys.argv[2], sys.argv[3]);
+    // router = Router(IPv4Address(sys.argv[1]), sys.argv[2], sys.argv[3]);
 
-    logging.info("Started: %s", datetime.datetime.now());
-    router.run();
+    // logging.info("Started: %s", datetime.datetime.now());
+    // router.run();
 
-    return 0;
+    // return 0;
 }
 
 // if __name__ == "__main__":

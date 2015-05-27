@@ -18,10 +18,11 @@
  *  ============================================
  */
 
+#include <string>
 #include "rapidjson/document.h"
 #include "rapidjson/filereadstream.h"
 
-class Config{
+class Config {
     /* The Config class parses the configuration file of an AD and stores such
      * information for further use.
      * 
@@ -60,8 +61,13 @@ class Config{
     int path_server_queue_size;
     int cert_chain_version;
 
-    Config(string config_file):
-        /* 
+public:
+    Config() {
+        Config("");
+    }
+
+    Config(const std::string &config_file) {
+        /**
          * Initialize an instance of the class Config.
 
          * :param config_file: the name of the configuration file.
@@ -69,36 +75,37 @@ class Config{
          * :returns: the newly created Config instance.
          * :rtype: :class:`Config`
          */
-        master_of_gen_key = 0
-        master_ad_key = 0
-        n_registered_paths = 0
-        n_shortest_up_paths = 0
-        propagation_time = 0
-        registration_time = 0
-        reset_time = 0
-        registers_paths = 0
-        pcb_queue_size = 0
-        path_server_queue_size = 0
-        cert_chain_version = 0
-        if (config_file != "")
+        master_of_gen_key = 0;
+        master_ad_key = 0;
+        n_registered_paths = 0;
+        n_shortest_up_paths = 0;
+        propagation_time = 0;
+        registration_time = 0;
+        reset_time = 0;
+        registers_paths = 0;
+        pcb_queue_size = 0;
+        path_server_queue_size = 0;
+        cert_chain_version = 0;
+        if (config_file.length())
             parse(config_file);
+    }
 
-    void parse(string config_file):
+    void parse(std::string config_file) {
         /* Parse a configuration file and populate the instance's attributes.
          * 
          * :param config_file: the name of the configuration file.
          * :type config_file: str
          */
-        try{
-            FILE* fp = fopen(config_file, "r");
+        rapidjson::Document d;
+        try {
+            FILE* fp = fopen(config_file.c_str(), "r");
             char readBuffer[65536];
-            FileReadStream is(fp, readBuffer, sizeof(readBuffer));
-            Document d;
+            rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
             d.ParseStream(is);
             fclose(fp);
         }
         catch(int e) {
-            logging.error("Config: JSON format error.")
+            // logging.error("Config: JSON format error.")
             return;
         }
         master_of_gen_key = d["MasterOFGKey"].GetInt();
@@ -112,4 +119,5 @@ class Config{
         pcb_queue_size = d["PCBQueueSize"].GetInt();
         path_server_queue_size = d["PSQueueSize"].GetInt();
         cert_chain_version = d["CertChainVersion"].GetInt();
+    }
 };
