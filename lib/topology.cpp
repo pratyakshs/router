@@ -45,9 +45,10 @@ class Element {
      */
     IPAddress* addr; 
     IPAddress* to_addr;
-    std::string name;
 
 public:
+    std::string name;
+
     Element() {}
 
     Element(std::string addr, std::string addr_type, std::string to_addr,
@@ -87,6 +88,8 @@ class ServerElement : public Element {
      * The ServerElement class represents one of the servers in the AD.
      */
  public:
+    ServerElement() {}
+
     ServerElement (std::map<std::string, std::string> server_dict, 
                    std::string name) : Element(server_dict["Addr"], 
                    server_dict["AddrType"], "", name) {
@@ -165,6 +168,8 @@ class RouterElement : public Element {
      */ 
 public:
     InterfaceElement interface;
+
+    RouterElement() {}
 
     RouterElement(std::map<std::string, std::string> router_dict, 
                   std::map<std::string, std::string> interface_dict,
@@ -371,15 +376,15 @@ public:
         is_core_ad = (topology["Core"] == 1);
         isd_id = topology["ISDID"];
         ad_id = topology["ADID"];
-        for (auto it = bs.begin(); it != bs.end(); it++) 
-            beacon_servers.push_back(ServerElement(it->second, it->first));
-        for (auto it = cs.begin(); it != cs.end(); it++) 
-            certificate_servers.push_back(ServerElement(it->second, it->first));
-        for (auto it = ps.begin(); it != ps.end(); it++) 
-            path_servers.push_back(ServerElement(it->second, it->first));
-        for (auto it = er.begin(); it != er.end(); it++) {
-            RouterElement edge_router(it->second.first, it->second.second, 
-                                      it->first);
+        for (auto it : bs) 
+            beacon_servers.push_back(ServerElement(it.second, it.first));
+        for (auto it : cs) 
+            certificate_servers.push_back(ServerElement(it.second, it.first));
+        for (auto it : ps) 
+            path_servers.push_back(ServerElement(it.second, it.first));
+        for (auto it : er) {
+            RouterElement edge_router(it.second.first, it.second.second, 
+                                      it.first);
             if (edge_router.interface.neighbor_type == "PARENT")
                 parent_edge_routers.push_back(edge_router);
             else if (edge_router.interface.neighbor_type == "CHILD")
@@ -417,27 +422,36 @@ public:
         return all_edge_routers;
     }
 
-    void get_own_config(std::string server_type, std::string server_id) {
-        // target = None
-        // if server_type == "bs":
-        //     target = beacon_servers
-        // elif server_type == "cs":
-        //     target = certificate_servers
-        // elif server_type == "ps":
-        //     target = path_servers
-        // elif server_type == "er":
-        //     target = get_all_edge_routers()
-        // else:
-        //     logging.error("Unknown server type: \"%s\"", server_type)
+    RouterElement get_own_config_edge_router(std::string server_id) {
+        std::vector<RouterElement> target = get_all_edge_routers();
+        for (RouterElement re : target) 
+            if (re.name == server_id)
+                return re;
+        // logging.error("Could not find server %s%s-%s-%s", server_type,
+                          // self.isd_id, self.ad_id, server_id)
+        return RouterElement();
+    }
 
-        // for i in target:
-        //     if i.name == server_id:
-        //         return i
-        // else:
-        //     logging.error("Could not find server %s%s-%s-%s", server_type,
-        //                   self.isd_id, self.ad_id, server_id)
-        std::cerr << "***UNIMPLEMENTED***" << std::endl;
-        exit(-1);
+    ServerElement get_own_config(std::string server_type, 
+                                 std::string server_id) {
+        std::vector<ServerElement> target;
+        if (server_type == "bs")
+            target = beacon_servers;
+        else if (server_type == "cs")
+            target = certificate_servers;
+        else if (server_type == "ps")
+            target = path_servers;
+        else {
+            // logging.error("Unknown server type: \"%s\"", server_type)
+            return ServerElement();
+        }
+
+        for (ServerElement se : target)
+            if (se.name == server_id)
+                return se;
+        // logging.error("Could not find server %s%s-%s-%s", server_type,
+                      // self.isd_id, self.ad_id, server_id)
+        return ServerElement();
     }
 };
 
