@@ -19,6 +19,7 @@
  */
 
 #include <string>
+#include <map>
 #include "rapidjson/document.h"
 #include "rapidjson/filereadstream.h"
 
@@ -49,6 +50,7 @@ class Config {
      * :ivar cert_chain_version: initial version of the certificate chain.
      * :ivar cert_chain_version: int
      */
+public:
     int master_of_gen_key;
     int master_ad_key; 
     int n_registered_paths; 
@@ -61,7 +63,6 @@ class Config {
     int path_server_queue_size;
     int cert_chain_version;
 
-public:
     Config() {
         Config("");
     }
@@ -87,10 +88,10 @@ public:
         path_server_queue_size = 0;
         cert_chain_version = 0;
         if (config_file.length())
-            parse(config_file);
+            parse_file(config_file);
     }
 
-    void parse(std::string config_file) {
+    void parse_file(const std::string &config_file) {
         /* Parse a configuration file and populate the instance's attributes.
          * 
          * :param config_file: the name of the configuration file.
@@ -119,5 +120,34 @@ public:
         pcb_queue_size = d["PCBQueueSize"].GetInt();
         path_server_queue_size = d["PSQueueSize"].GetInt();
         cert_chain_version = d["CertChainVersion"].GetInt();
+    }
+
+    Config(std::map<std::string, int> &config_dict) {
+        /**
+         * Create a Config instance from the dictionary.
+         * :param config_dict: dictionary representation of configuration
+         * :type config_dict: dict
+         */
+        Config("");
+        parse_dict(config_dict);
+    }
+
+    void parse_dict(std::map<std::string, int> &config) {
+        /**
+         * Parse a configuration file and populate the instance's attributes.
+         * :param config: the name of the configuration file.
+         * :type config: dict
+         */
+        master_of_gen_key = config["MasterOFGKey"];
+        master_ad_key = config["MasterADKey"];
+        n_registered_paths = config["NumRegisteredPaths"];
+        n_shortest_up_paths = config["NumShortestUPs"];
+        propagation_time = config["PropagateTime"];
+        registration_time = config["RegisterTime"];
+        reset_time = config["ResetTime"];
+        registers_paths = config["RegisterPath"];
+        pcb_queue_size = config["PCBQueueSize"];
+        path_server_queue_size = config["PSQueueSize"];
+        cert_chain_version = config["CertChainVersion"];
     }
 };

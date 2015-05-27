@@ -33,8 +33,8 @@ typedef std::map<S,S> MSS;
 
 class Element {
     /*
-     * The Element class is the base class for elements specified in the topology
-     * file.
+     * The Element class is the base class for elements specified in the 
+     * topology file.
      * 
      * :ivar addr: IP or SCION address of a server or edge router.
      * :type addr: :class:`IPv4Address` or :class:`IPv6Address`
@@ -98,7 +98,10 @@ class ServerElement : public Element {
          * :param name: server element name or id
          * :type name: str
          */
-     }
+    }
+
+     ServerElement(std::string addr, std::string addr_type, std::string name) 
+                : Element(addr, addr_type, "", name) {}
 };
 
 class InterfaceElement : public Element {
@@ -115,8 +118,8 @@ class InterfaceElement : public Element {
      * :ivar neighbor_type: the type of the neighbor relative to the AD to which
      *                      the interface belongs.
      * :type neighbor_type: str
-     * :ivar to_udp_port: the port number receiving UDP traffic on the other end of
-     *                    the interface.
+     * :ivar to_udp_port: the port number receiving UDP traffic on the other end 
+     *                    of the interface.
      * :type to_udp_port: int
      * :ivar udp_port: the port number used to send UDP traffic.
      * :type udp_port: int
@@ -205,8 +208,8 @@ class Topology {
      * :vartype child_edge_routers: list
      * :ivar peer_edge_routers: edge router linking the AD to its peers.
      * :vartype peer_edge_routers: list
-     * :ivar routing_edge_routers: edge router linking the core AD to another core
-     *                             AD.
+     * :ivar routing_edge_routers: edge router linking the core AD to another 
+     *                             core AD.
      * :vartype routing_edge_routers: list
      */
     bool is_core_ad;
@@ -220,6 +223,7 @@ class Topology {
     std::vector<RouterElement> peer_edge_routers;
     std::vector<RouterElement> routing_edge_routers;
 
+public:
     Topology() {
         /**
          * Initialize an instance of the class Topology.
@@ -233,35 +237,90 @@ class Topology {
     }
 
     Topology(std::string topology_file) {
-        /*
+        /**
          * Create a Topology instance from the file.
          * 
          * :param topology_file: path to the topology file
          * :type topology_file: str
          */
-        // try:
-        //     with open(topology_file) as topo_fh:
-        //         topology_dict = json.load(topo_fh)
-        // except (ValueError, KeyError, TypeError):
-        //     logging.error("Topology: JSON format error.")
-        //     return
-        // return cls.from_dict(topology_dict)
+        rapidjson::Document d;
+        try{
+            FILE* fp = fopen(topology_file.c_str(), "r");
+            char readBuffer[65536];
+            rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+            
+            d.ParseStream(is);
+            fclose(fp);
+        }
+        catch(int e) {
+            // logging.error("Config: JSON format error.")
+            return;
+        }
+        
+        is_core_ad = (d["Core"].GetInt() == 1);
+        isd_id = d["ISDID"].GetInt();
+        ad_id = d["ADID"].GetInt();
 
+        rapidjson::Value& bs = d["BeaconServers"];
+        for (rapidjson::Value::ConstMemberIterator itr = bs.MemberBegin();
+                 itr != bs.MemberEnd(); itr++) {
+            ServerElement b_server(itr->value["Addr"].GetString(), 
+                                   itr->value["AddrType"].GetString(),
+                                   itr->name.GetString());
+            beacon_servers.push_back(b_server);
+        }
+        rapidjson::Value& cs = d["CertificateServers"];
+        for (rapidjson::Value::ConstMemberIterator itr = cs.MemberBegin();
+                 itr != cs.MemberEnd(); itr++) {
+            ServerElement c_server(itr->value["Addr"].GetString(), 
+                                   itr->value["AddrType"].GetString(),
+                                   itr->name.GetString());
+            certificate_servers.push_back(c_server);
+        }
+        rapidjson::Value& ps = d["PathServers"];
+        for (rapidjson::Value::ConstMemberIterator itr = ps.MemberBegin();
+                 itr != ps.MemberEnd(); itr++) {
+            ServerElement p_server(itr->value["Addr"].GetString(), 
+                                   itr->value["AddrType"].GetString(),
+                                   itr->name.GetString());
+            path_servers.push_back(p_server);
+        }
+        rapidjson::Value& er = d["EdgeRouters"];
+         for (rapidjson::Value::ConstMemberIterator itr = er.MemberBegin();
+                 itr != er.MemberEnd(); itr++) {
+            const rapidjson::Value& dict = itr->value;
+            std::map<std::string, std::string> router_dict;
+            router_dict["Addr"] = dict["Addr"].GetString();
+            router_dict["AddrType"] = dict["AddrType"].GetString();
+            
+            std::map<std::string, std::string> interface_dict;
+            const rapidjson::Value& interface = dict["Interface"];
+            for (rapidjson::Value::ConstMemberIterator it = 
+                 interface.MemberBegin(); it != interface.MemberEnd(); it++) {
+                if (it->value.IsString()) {
+                    interface_dict[it->name.GetString()] =
+                                            it->value.GetString();    
+                }
+                else { 
+                    interface_dict[it->name.GetString()] = 
+                        std::to_string(it->value.GetInt());
+                }
+            }
+            RouterElement edge_router(router_dict, interface_dict, 
+                                      itr->name.GetString());
 
-        // try{
-        //     FILE* fp = fopen(topology_file, "r");
-        //     char readBuffer[65536];
-        //     FileReadStream is(fp, readBuffer, sizeof(readBuffer));
-        //     Document d;
-        //     d.ParseStream(is);
-        //     fclose(fp);
-        // }
-        // catch(int e) {
-        //     logging.error("Config: JSON format error.")
-        //     return;
-        // }
-        std::cerr << "***UNIMPLEMENTED***" << std::endl;
-        exit(-1);
+            if (edge_router.interface.neighbor_type == "PARENT")
+                parent_edge_routers.push_back(edge_router);
+            else if (edge_router.interface.neighbor_type == "CHILD")
+                child_edge_routers.push_back(edge_router);
+            else if (edge_router.interface.neighbor_type == "PEER")
+                peer_edge_routers.push_back(edge_router);
+            else if (edge_router.interface.neighbor_type == "ROUTING")
+                routing_edge_routers.push_back(edge_router);
+            else {
+                // logging.warning("Encountered unknown neighbor type")
+            }
+        }
     }
 
     Topology(std::map<std::string, uint64_t> topology, 
