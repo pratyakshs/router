@@ -122,6 +122,7 @@ public:
 		 */
 		array.reserve(other.array.size() + array.size());
 		array.insert(array.end(), other.array.begin(), other.array.end());
+		return *this;
 	}
 
 	std::string get_string() const {

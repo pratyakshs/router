@@ -45,9 +45,18 @@ public:
 		version = 0;
 		length = 0;
 	}
-	virtual std::string to_string() {}
-	virtual uint32_t to_ulong() {}
-	virtual BitArray pack() {}
+
+	virtual std::string to_string() {
+		return "";
+	}
+
+	virtual uint32_t to_ulong() {
+		return 0;
+	}
+
+	virtual BitArray pack() {
+		return BitArray();
+	}
 };
 
 class IPv4Address : public IPAddress {
