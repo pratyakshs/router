@@ -173,14 +173,14 @@ class SCIONHeader : public HeaderBase {
     /**
      * The SCION packet header.
      */
+public:
+    PathBase path;
+    SCIONAddr dst_addr;
     static const int MIN_LEN = 16;  // Update when values are fixed.
     SCIONAddr src_addr;
-    SCIONAddr dst_addr;
-    PathBase path;
     vector<ExtensionHeader> extension_hdrs;
     bool path_set;
 
-public:
     SCIONCommonHdr common_hdr;
 
     SCIONHeader() {

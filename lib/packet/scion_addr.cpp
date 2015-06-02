@@ -59,7 +59,7 @@ public:
     }
 
     // def from_values(cls, isd_id, ad_id, host_addr):
-    SCIONAddr(uint16_t isd_id, uint64_t ad_id, const IPv4Address * host_addr) {
+    SCIONAddr(uint16_t isd_id, uint64_t ad_id, const IPAddress * host_addr) {
         this->isd_id = isd_id;
         this->ad_id = ad_id;
         this->host_addr = (IPAddress*)host_addr; ///? hacky

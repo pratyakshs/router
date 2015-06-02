@@ -43,10 +43,10 @@ class Element {
      * :ivar name: element name or id
      * :type name: str
      */
-    IPAddress* addr; 
     IPAddress* to_addr;
 
 public:
+    IPAddress* addr; 
     std::string name;
 
     Element() {}
@@ -127,13 +127,13 @@ class InterfaceElement : public Element {
      * :ivar udp_port: the port number used to send UDP traffic.
      * :type udp_port: int
      */
-    int if_id;
     int neighbor_ad;
     int neighbor_isd;
     int to_udp_port;
     int udp_port;
 
 public:
+    int if_id;
     std::string neighbor_type;
 
     InterfaceElement() {}
@@ -218,8 +218,6 @@ class Topology {
      * :vartype routing_edge_routers: list
      */
     bool is_core_ad;
-    uint16_t isd_id;
-    int64_t ad_id;
     std::vector<ServerElement> beacon_servers;
     std::vector<ServerElement> certificate_servers;
     std::vector<ServerElement> path_servers;
@@ -229,6 +227,9 @@ class Topology {
     std::vector<RouterElement> routing_edge_routers;
 
 public:
+    uint16_t isd_id;
+    int64_t ad_id;
+
     Topology() {
         /**
          * Initialize an instance of the class Topology.
