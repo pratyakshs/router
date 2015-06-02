@@ -56,7 +56,7 @@ protected:
     std::string raw;
 
 public:
-    int info;
+    uint32_t info;
     static const int LEN = 8;
     
     OpaqueField() {
@@ -312,9 +312,10 @@ class TRCField : public OpaqueField {
      * and a reserved section (1 byte).
      */    
     int trc_version;
-    int if_id;
     int reserved;
 public:
+    int if_id;
+
     TRCField(const std::string &raw) : OpaqueField() {
         info = OpaqueFieldType::TRC_OF;
         trc_version = 0;

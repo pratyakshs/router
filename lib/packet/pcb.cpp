@@ -16,10 +16,6 @@
 /* :mod:`pcb` --- SCION Beacon
  * ===========================================
  */
-
-// from lib.packet.scion import PacketType, SCIONHeader, SCIONPacket
-// from lib.packet.scion_addr import SCIONAddr
-
 #ifndef PCB_CPP
 #define PCB_CPP
 
@@ -647,8 +643,8 @@ class PathConstructionBeacon : public SCIONPacket {
     /**
      * PathConstructionBeacon packet, used for path propagation.
      */
-    PathSegment pcb;
 public:
+    PathSegment pcb;
     PathConstructionBeacon(const std::string &raw) : SCIONPacket() {
         if (raw.length()) 
             parse(raw);

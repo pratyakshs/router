@@ -764,4 +764,4 @@ class PathCombinator {
     //     return paths
 };
 
-#endif
+#endif // PATH_CPP

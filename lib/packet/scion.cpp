@@ -962,4 +962,4 @@ public:
     }
 };
 
-#endif
+#endif // SCION_CPP
