@@ -207,6 +207,15 @@ public:
         path_set = 1;
     }
 
+    SCIONHeader(const SCIONAddr &src, const SCIONAddr &dst) : HeaderBase() {
+        /**
+         * Constructor with the values specified.
+         */
+        common_hdr = SCIONCommonHdr(src.addr_len, dst.addr_len, 0);
+        src_addr = src;
+        dst_addr = dst;
+    }
+
     PathBase get_path() {
         /** 
          * Returns the path in the header.

@@ -28,7 +28,7 @@
 #include "opaque_field.cpp"
 #include "path.cpp"
 #include "scion_addr.cpp"
-// #include "scion.cpp"
+#include "scion.cpp"
 
 #define MAX_SEGMENT_TTL 86400 // 26 * 60 * 60
 #define EXP_TIME_UNIT 337.5 // MAX_SEGMENT_TTL / 2 ** 8
@@ -643,42 +643,41 @@ class PathSegment : public Marking {
     }
 };
 
-// class PathConstructionBeacon : public SCIONPacket {
-//     /**
-//      * PathConstructionBeacon packet, used for path propagation.
-//      */
-//     PathSegment pcb;
-// public:
-//     PathConstructionBeacon : SCIONPacket() {
-//         if (raw.length()) 
-//             parse(raw);
-//     }
-// 
-//     void parse(const std::string &raw) {
-//         SCIONPacket::parse(raw);
-//         pcb = PathSegment(payload);
-//     }
-// 
-//     PathConstructionBeacon(std::pair<uint16_t, uint64_t> src_isd_ad, 
-//                         SCIONAddr &dst, PathSegment &pcb) : SCIONPacket() {
-//         /**
-//          * Returns a PathConstructionBeacon packet with the values specified.
-//          * 
-//          * :param src_isd_ad: Source's 'ISD_AD' namedtuple.
-//          * :param dst: Destination address (must be a 'SCIONAddr' object)
-//          * :param pcb: Path Construction PathConstructionBeacon ('PathSegment'
-//          *             class)
-//          */
-//         this->pcb = pcb;
-//         src = SCIONAddr(src_isd_ad.first, src_isd_ad.second,
-//                                     PacketType::BEACON);
-//         hdr = SCIONHeader(src, dst);
-//     }
-// 
-//     BitArray pack() const {
-//         payload = pcb.pack().get_string();
-//         return SCIONPacket::pack();
-//     }
-// };
+class PathConstructionBeacon : public SCIONPacket {
+    /**
+     * PathConstructionBeacon packet, used for path propagation.
+     */
+    PathSegment pcb;
+public:
+    PathConstructionBeacon(const std::string &raw) : SCIONPacket() {
+        if (raw.length()) 
+            parse(raw);
+    }
+
+    void parse(const std::string &raw) {
+        SCIONPacket::parse(raw);
+        pcb = PathSegment(payload);
+    }
+
+    PathConstructionBeacon(std::pair<uint16_t, uint64_t> src_isd_ad, 
+                        SCIONAddr &dst, PathSegment &pcb) : SCIONPacket() {
+        /**
+         * Returns a PathConstructionBeacon packet with the values specified.
+         * 
+         * :param src_isd_ad: Source's 'ISD_AD' namedtuple.
+         * :param dst: Destination address (must be a 'SCIONAddr' object)
+         * :param pcb: Path Construction PathConstructionBeacon ('PathSegment'
+         *             class)
+         */
+        this->pcb = pcb;
+        SCIONAddr src(src_isd_ad.first, src_isd_ad.second, &PacketType::BEACON);
+        hdr = SCIONHeader(src, dst);
+    }
+
+    BitArray pack() {
+        payload = pcb.pack().get_string();
+        return SCIONPacket::pack();
+    }
+};
 
 #endif // PCB_CPP
