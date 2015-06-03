@@ -213,7 +213,7 @@ public:
         next_hop.addr = interface.to_addr->to_string();
         next_hop.port = interface.to_udp_port;
         SCIONAddr src(topology.isd_id, topology.ad_id, interface.addr);
-        std::pair<uint16_t, uint64_t> dst_isd_ad(interface.neighbor_isd, 
+        std::pair<uint16_t, uint64_t> dst_isd_ad(interface.neighbor_isd,
                                                  interface.neighbor_ad);
         IFIDPacket ifid_req(src, dst_isd_ad, interface.if_id);
         while (true) {
@@ -294,25 +294,30 @@ public:
         send(spkt, next_hop);
     }
 
-    def verify_of(self, hof, prev_hof, ts):
-        *
-        Verifies freshness and authentication of an opaque field.
-        :param hof: the hop opaque field that is verified.
-        :type hof: :class:`lib.packet.opaque_field.HopOpaqueField`
-        :param prev_hof: previous hop opaque field (according to order of PCB
-            propagation) required for verification.
-        :type prev_hof: :class:`lib.packet.opaque_field.HopOpaqueField` or None
-        :param ts: timestamp against which the opaque field is verified.
-        :type ts: int
-        *
-        if int(time.time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
-            if verify_of_mac(self.of_gen_key, hof, prev_hof, ts):
-                return True
-            else:
-                logging.warning("Dropping packet due to incorrect MAC.")
-        else:
-            logging.warning("Dropping packet due to expired OF.")
-        return False
+    bool verify_of(CommonOpaqueField *hof, CommonOpaqueField *prev_hof, int ts) {
+        /**
+         * Verifies freshness and authentication of an opaque field.
+         * :param hof: the hop opaque field that is verified.
+         * :type hof: :class:`lib.packet.opaque_field.HopOpaqueField`
+         * :param prev_hof: previous hop opaque field (according to order of PCB
+         *     propagation) required for verification.
+         * :type prev_hof: :class:`lib.packet.opaque_field.HopOpaqueField` or None
+         * :param ts: timestamp against which the opaque field is verified.
+         * :type ts: int
+         */
+        // if (std::time(0) <= ts + hof.exp_time * EXP_TIME_UNIT) {
+        //     if (verify_of_mac(of_gen_key, hof, prev_hof, ts))
+        //         return true;
+        //     else {
+        //         // logging.warning("Dropping packet due to incorrect MAC.")
+        //     }
+        // }
+        // else {
+        //     logging.warning("Dropping packet due to expired OF.")
+        // }
+        // return true;
+        return true;
+    }
 
     void normal_forward(SCIONPacket spkt, NextHop next_hop, bool from_local_ad, 
                         IPv4Address ptype) {
@@ -327,19 +332,27 @@ public:
          * :param ptype: the type of the packet.
          * :type ptype: :class:`lib.packet.scion.PacketType`
          */
+        CommonOpaqueField *curr_hof = spkt.hdr.get_current_of();
+        CommonOpaqueField *prev_hof = NULL;
+        bool is_on_up_path = spkt.hdr.is_on_up_path();
+        int timestamp = spkt.hdr.get_current_iof()->timestamp;
         int iface;
-        if (!verify_of(spkt))
-            return;
-        if (spkt.hdr.is_on_up_path())
-            iface = spkt.hdr.get_current_of()->ingress_if;
-        else
-            iface = spkt.hdr.get_current_of()->egress_if;
+        if (is_on_up_path) {
+            iface = curr_hof->ingress_if;
+            prev_hof = spkt.hdr.get_relative_of(1);
+        }
+        else {
+            iface = curr_hof->egress_if;
+            if (spkt.hdr.get_relative_of(-1)->is_regular())
+                prev_hof = spkt.hdr.get_relative_of(-1);
+        }
         if (from_local_ad) {
             if (iface == interface.if_id) {
                 next_hop.addr = interface.to_addr->to_string();
                 next_hop.port = interface.to_udp_port;
                 spkt.hdr.increase_of(1);
-                send(spkt, next_hop, false);
+                if (verify_of(curr_hof, prev_hof, timestamp))
+                    send(spkt, next_hop, false);
             }
             else {
                 // logging.error("1 interface mismatch %u != %u", iface,
@@ -351,21 +364,12 @@ public:
                 next_hop.addr = ifid2addr[iface].host_addr->to_string();
             else if (ptype == PacketType::PATH_MGMT)
                 next_hop.addr = topology.path_servers[0].addr->to_string();
-            else if (!spkt.hdr.is_last_path_of()) { // next path segment
-                spkt.hdr.increase_of(1);  // this is next SOF
-                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;
-                spkt.hdr.increase_of(1);  // first HOF of the new path segment
-                if (spkt.hdr.is_on_up_path())  // TODO replace by get_first_hop
-                    iface = spkt.hdr.get_current_of()->ingress_if;
-                else
-                    iface = spkt.hdr.get_current_of()->egress_if;
-                next_hop.addr = ifid2addr[iface].host_addr->to_string();
-            }
             else {  // last opaque field on the path, send the packet to the dst
                 next_hop.addr = spkt.hdr.dst_addr.host_addr->to_string();
                 next_hop.port = SCION_UDP_EH_DATA_PORT;  // data packet to endhost
             }
-            send(spkt, next_hop);
+            if (verify_of(curr_hof, prev_hof, timestamp))
+                send(spkt, next_hop);
         }
         // logging.debug("normal_forward()")
     }
@@ -384,8 +388,15 @@ public:
          * :type info: :class:`lib.packet.opaque_field.OpaqueFieldType`
          */
         // logging.debug("crossover_forward()")
+        CommonOpaqueField *curr_hof = spkt.hdr.get_current_of();
+        CommonOpaqueField *prev_hof = NULL;
+        bool is_on_up_path = spkt.hdr.is_on_up_path();
+        bool timestamp = spkt.hdr.get_current_iof()->timestamp;
+
         if (info == OpaqueFieldType::TDC_XOVR) {
-            if (verify_of(spkt)) {
+            if (is_on_up_path)
+                prev_hof = spkt.hdr.get_relative_of(-1);
+            if (verify_of(curr_hof, prev_hof, timestamp)) {
                 spkt.hdr.increase_of(1);
                 CommonOpaqueField *next_iof = spkt.hdr.get_current_of();
                 CommonOpaqueField *opaque_field = spkt.hdr.get_relative_of(1);
@@ -402,37 +413,37 @@ public:
             }
         }
         else if (info == OpaqueFieldType::NON_TDC_XOVR) {
-            spkt.hdr.increase_of(2);
-            CommonOpaqueField *opaque_field = spkt.hdr.get_relative_of(2);
-            next_hop.addr = 
-                ifid2addr[opaque_field->egress_if].host_addr->to_string();
-            // logging.debug("send() here, find next hop1");
-            send(spkt, next_hop);
+            prev_hof = spkt.hdr.get_relative_of(1);
+            if (verify_of(curr_hof, prev_hof, timestamp)) {
+                spkt.hdr.increase_of(2);
+                CommonOpaqueField *opaque_field = spkt.hdr.get_relative_of(2);
+                next_hop.addr = 
+                    ifid2addr[opaque_field->egress_if].host_addr->to_string();
+                // logging.debug("send() here, find next hop1");
+                send(spkt, next_hop);
+            }
         }
         else if (info == OpaqueFieldType::INPATH_XOVR) {
-            if (verify_of(spkt)) {
+            if (verify_of(curr_hof, prev_hof, timestamp)) {
                 bool is_regular = true;
                 while (is_regular) {
                     spkt.hdr.increase_of(2);
                     is_regular = spkt.hdr.get_current_of()->is_regular();
                 }
-                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;
-                if (verify_of(spkt)) {
-                    // logging.debug("TODO send() here, find next hop2")
-                }
+                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;    
+                // logging.debug("TODO send() here, find next hop2")
             }
         }
         else if (info == OpaqueFieldType::INTRATD_PEER 
                  || info == OpaqueFieldType::INTERTD_PEER) {
-            if (spkt.hdr.is_on_up_path())
-                spkt.hdr.increase_of(1);
-            if (verify_of(spkt))
-                if (!spkt.hdr.is_on_up_path())
-                    spkt.hdr.increase_of(2);
+            spkt.hdr.increase_of(1);
+            prev_hof = spkt.hdr.get_relative_of(1);
+            if (verify_of(curr_hof, prev_hof, timestamp)) {
                 next_hop.addr = 
                     ifid2addr[spkt.hdr.get_current_of()->ingress_if].host_addr->to_string();
                 // logging.debug("send() here, next: %s", next_hop)
                 send(spkt, next_hop);
+            }
         }
         else {
             // logging.warning("Unknown case %u", info)
@@ -451,9 +462,11 @@ public:
          * :param ptype: the type of the packet.
          * :type ptype: :class:`lib.packet.scion.PacketType`
          */
+        bool new_segment = false;
         while (!spkt.hdr.get_current_of()->is_regular()) {
             spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;
             spkt.hdr.increase_of(1);
+            new_segment = true;
         }
 
         while (spkt.hdr.get_current_of()->is_continue())
@@ -470,15 +483,14 @@ public:
                 spkt.hdr.common_hdr.curr_of_p == curr_iof_p + OpaqueField::LEN)
             spkt.hdr.increase_of(1);
 
-        // if spkt.hdr.get_current_of()->is_xovr():
-        if (spkt.hdr.get_current_of()->info == OpaqueFieldType::LAST_OF)
+        if (spkt.hdr.get_current_of()->info == OpaqueFieldType::LAST_OF
+            && !spkt.hdr.is_last_path_of() && !new_segment)
             crossover_forward(spkt, next_hop, from_local_ad, info);
         else
             normal_forward(spkt, next_hop, from_local_ad, ptype);
     }
 
-    void write_to_egress_iface(SCIONPacket spkt, NextHop next_hop, 
-                               bool from_local_ad) {
+    void write_to_egress_iface(SCIONPacket spkt, NextHop next_hop) {
         /**
          * Forwards packet to neighboring router.
          * :param spkt: the SCION packet to forward.
@@ -488,35 +500,42 @@ public:
          * :param from_local_ad: whether or not the packet is from the local AD.
          * :type from_local_ad: bool
          */
-        if (spkt.hdr.is_on_up_path())
-            iface = spkt.hdr.get_current_of()->ingress_if;
-        else
-            iface = spkt.hdr.get_current_of()->egress_if;
+        int of_info = spkt.hdr.get_current_of()->info;
 
-        int info = spkt.hdr.get_current_iof()->info;
-        spkt.hdr.increase_of(1);
-        if (info == OpaqueFieldType::INTRATD_PEER || info == OpaqueFieldType::INTERTD_PEER) {
-            uint32_t of1_info = spkt.hdr.get_relative_of(1)->info;
-            uint32_t of2_info = spkt.hdr.get_current_of()->info;
-            if ((of1_info == OpaqueFieldType::INTRATD_PEER || of1_info == OpaqueFieldType::INTERTD_PEER) &&
-                 spkt.hdr.is_on_up_path()) ||
-                    (of2_info == OpaqueFieldType::LAST_OF and not spkt.hdr.is_on_up_path())):
-                spkt.hdr.increase_of(1)
+        if (of_info == OpaqueFieldType::TDC_XOVR) {
+            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;
+            spkt.hdr.increase_of(1);
         }
-        if self.interface.if_id != iface:  // TODO debug
-            logging.error("0 interface mismatch %u != %u", iface,
-                          self.interface.if_id)
-            return
+        else if (of_info == OpaqueFieldType::NON_TDC_XOVR) {
+            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;
+            spkt.hdr.increase_of(2);
+        }
 
-        next_hop.addr = self.interface.to_addr->to_string();
-        next_hop.port = self.interface.to_udp_port;
-        logging.debug("sending to dst6 %s", next_hop);
+        spkt.hdr.increase_of(1);
+        int iof_info = spkt.hdr.get_current_iof()->info;
+        if (iof_info == OpaqueFieldType::INTRATD_PEER || iof_info == OpaqueFieldType::INTERTD_PEER) {
+            if (spkt.hdr.is_on_up_path()) {
+                    int rel_info = spkt.hdr.get_relative_of(1)->info;
+                if (rel_info == OpaqueFieldType::INTRATD_PEER || rel_info == OpaqueFieldType::INTERTD_PEER)
+                    spkt.hdr.increase_of(1);
+            }
+            else {
+                if (spkt.hdr.get_current_of()->info == OpaqueFieldType::LAST_OF)
+                    spkt.hdr.increase_of(1);
+            }
+        }
+
+        next_hop.addr = interface.to_addr->to_string();
+        next_hop.port = interface.to_udp_port;
+        // logging.debug("sending to dst6 %s", next_hop);
         send(spkt, next_hop, false);
     }
 
-    void process_packet(self, spkt, next_hop, from_local_ad, ptype):
+    void process_packet(SCIONPacket spkt, NextHop next_hop, bool from_local_ad,
+                        IPv4Address ptype) {
         /**
          * Inspects current opaque fields and decides on forwarding type.
+         * 
          * :param spkt: the SCION packet to process.
          * :type spkt: :class:`lib.packet.scion.SCIONPacket`
          * :param next_hop: the next hop of the packet.
@@ -526,22 +545,18 @@ public:
          * :param ptype: the type of the packet.
          * :type ptype: :class:`lib.packet.scion.PacketType`
          */
-        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and  // TODO PSz
-                ptype == PT.DATA and from_local_ad):
-            of_info = spkt.hdr.get_current_of()->info
-            if of_info == OpaqueFieldType::TDC_XOVR:
-                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
-                spkt.hdr.increase_of(1)
-            else if of_info == OpaqueFieldType::NON_TDC_XOVR:
-                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
-                spkt.hdr.increase_of(2)
-            self.write_to_egress_iface(spkt, next_hop, from_local_ad)
+        if (!spkt.hdr.is_first_path_of() &&
+                ptype == PacketType::DATA && from_local_ad)
+            write_to_egress_iface(spkt, next_hop);
         else
-            self.forward_packet(spkt, next_hop, from_local_ad, ptype)
+            forward_packet(spkt, next_hop, from_local_ad, ptype);
+    }
 
-    void handle_request(self, packet, sender, from_local_socket=true):
+    void handle_request(std::string packet, int sender, 
+                        bool from_local_socket=true) {
         /**
          * Main routine to handle incoming SCION packets.
+         * 
          * :param packet: the incoming packet to handle.
          * :type packet: SCIONPacket
          * :param sender:
@@ -549,52 +564,48 @@ public:
          * :param from_local_socket: whether the request is coming from a local
          *     socket.
          * :type from_local_socket: bool
+         * 
          * .. note::
          *     `sender` is not used in this function at the moment.
          */
-        from_local_ad = from_local_socket
-        spkt = SCIONPacket(packet)
-        ptype = get_type(spkt)
-        next_hop = NextHop()
-        self.handle_extensions(spkt, next_hop, true)
-        if ptype == PT.IFID_PKT and not from_local_ad:
-            self.process_ifid_request(packet, next_hop)
-        else if ptype == PT.BEACON:
-            self.process_pcb(packet, next_hop, from_local_ad)
-        else if ptype in [PT.CERT_CHAIN_REQ, PT.CERT_CHAIN_REP, PT.TRC_REQ,
-                       PT.TRC_REP]:
-            self.relay_cert_server_packet(spkt, next_hop, from_local_ad)
-        else
-            if ptype == PT.DATA:
-                logging.debug("DATA type %s, %s", ptype, spkt)
-            self.process_packet(spkt, next_hop, from_local_ad, ptype)
+        bool from_local_ad = from_local_socket;
+        SCIONPacket spkt(packet);
+        IPv4Address ptype = get_type(spkt);
+        NextHop next_hop;
+        handle_extensions(spkt, next_hop, true);
+        if (ptype == PacketType::IFID_PKT && !from_local_ad)
+            process_ifid_request(packet, next_hop);
+        else if (ptype == PacketType::BEACON)
+            process_pcb(packet, next_hop, from_local_ad);
+        else if (ptype == PacketType::CERT_CHAIN_REQ 
+                 || ptype == PacketType::CERT_CHAIN_REP
+                 || ptype == PacketType::TRC_REQ 
+                 || ptype == PacketType::TRC_REP)
+            relay_cert_server_packet(spkt, next_hop, from_local_ad);
+        else {
+            if (ptype == PacketType::DATA) {
+                // logging.debug("DATA type %s, %s", ptype, spkt)
+            }
+            process_packet(spkt, next_hop, from_local_ad, ptype);
+        }
+    }
 };
 
-int main() {
-    /*
+int main(int argc, char* argv[]) {
+    /**
      * Initializes and starts router.
      */
-    // init_logging();
-    // handle_signals();
-    // if len(sys.argv) != 4:
-    //     logging.error("run: %s IP topo_file conf_file", sys.argv[0])
-    //     sys.exit();
-
-    // router = Router(IPv4Address(sys.argv[1]), sys.argv[2], sys.argv[3]);
-
-    // logging.info("Started: %s", datetime.datetime.now());
-    // router.run();
-
-    // return 0;
+    // init_logging()
+    // handle_signals()
+    if (argc != 4) {
+        // logging.error("run: %s router_id topo_file conf_file", sys.argv[0])
+        exit(-1);
+    }
+    // for pre_ext_handlers and post_ext_handlers.
+    std::map<int, HandlerFunction> temp; 
+    
+    std::vector<std::string> params(argv, argv+argc);
+    Router router(params[1], params[2], params[3], temp, temp);
+    // logging.info("Started: %s", datetime.datetime.now())
+    router.run();
 }
-
-// if __name__ == "__main__":
-//     try:
-//         main()
-//     except SystemExit:
-//         logging.info("Exiting")
-//         raise
-//     except:
-//         log_exception("Exception in main process:")
-//         logging.critical("Exiting")
-//         sys.exit(1)

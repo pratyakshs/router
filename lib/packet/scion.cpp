@@ -35,7 +35,7 @@ class PacketType {
      * Defines constants for the SCION packet types.
      */
  public:
-    static const int DATA = -1;  // Data packet
+    static const IPv4Address DATA;  // Data packet
     static const IPv4Address BEACON ; // Path Construction Beacon
     static const IPv4Address PATH_MGMT;  // Path management packet from/to PS
     static const IPv4Address TRC_REQ; // TRC file request to parent AD
@@ -49,6 +49,7 @@ class PacketType {
     static const vector<IPv4Address> DST;
 };
 
+const IPv4Address PacketType::DATA = IPv4Address("0.0.0.0");
 const IPv4Address PacketType::BEACON = IPv4Address("10.224.0.1");
 const IPv4Address PacketType::PATH_MGMT = IPv4Address("10.224.0.2");
 const IPv4Address PacketType::TRC_REQ = IPv4Address("10.224.0.3");
@@ -450,6 +451,15 @@ public:
         return common_hdr.curr_of_p + offset == common_hdr.hdr_len;
     }
 
+    bool is_first_path_of() {
+        /**
+         * Returs 'True' if the current opaque field is the very first opaque field
+         * (i.e., InfoOpaqueField), 'False' otherwise.
+         */
+        return common_hdr.curr_of_p == (common_hdr.src_addr_len +
+                                             common_hdr.dst_addr_len);
+    }
+
     void reverse() {
         /**
          * Reverses the header.
@@ -502,7 +512,7 @@ public:
     SCIONPacket(const SCIONAddr &src, const SCIONAddr &dst, 
                 const std::string &payload, PathBase path,
                 vector<ExtensionHeader> &ext_hdrs, int next_hdr=0, 
-                int pkt_type=PacketType::DATA) : PacketBase() {
+                IPv4Address pkt_type=PacketType::DATA) : PacketBase() {
         /**
          * Returns a SCIONPacket with the values specified.
          * :param src: Source address (must be a 'SCIONAddr' object)
@@ -961,5 +971,27 @@ public:
         payload = bits.get_string() + trc;
     }
 };
+
+IPv4Address get_type(SCIONPacket pkt) {
+    /* Return the packet type; used for dispatching.
+     *
+     * :param pkt: the packet.
+     * :type pkt: SCIONPacket
+     * :returns: the packet type.
+     * :rtype: IPv4Address
+     */
+    IPv4Address src_addr = *((IPv4Address *)(pkt.hdr.src_addr.host_addr));
+    for(auto it = PacketType::SRC.begin(); it != PacketType::SRC.end(); it++) {
+        if (*it == src_addr) 
+            return src_addr;
+    }
+
+    IPv4Address dst_addr = *((IPv4Address *)(pkt.hdr.dst_addr.host_addr));
+    for(auto it = PacketType::DST.begin(); it != PacketType::DST.end(); it++) {
+        if (*it == dst_addr) 
+            return dst_addr;
+    }
+    return IPv4Address("0.0.0.0");
+}
 
 #endif // SCION_CPP
