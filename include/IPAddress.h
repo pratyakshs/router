@@ -40,6 +40,7 @@ class IPAddress {
 public:
 	int version;
 	int length;
+	std::bitset<8> addressv4[4];
 
 	IPAddress() {
 		version = 0;
@@ -47,6 +48,11 @@ public:
 	}
 
 	virtual std::string to_string() {
+		if (version == 4)
+			return std::to_string(addressv4[0].to_ulong()) + "." 
+				+ std::to_string(addressv4[1].to_ulong()) + "."
+				+ std::to_string(addressv4[2].to_ulong()) + "."
+				+ std::to_string(addressv4[3].to_ulong());
 		return "";
 	}
 
@@ -57,13 +63,27 @@ public:
 	virtual BitArray pack() {
 		return BitArray();
 	}
+
+	void operator=(IPAddress &other) {
+		for (int i = 0; i < 4; i++)
+			addressv4[i] = other.addressv4[i];
+		version = other.version;
+	}
+
+	bool operator==(IPAddress &other) {
+		if (version != other.version)
+			return false;
+		for (int i = 0; i < 4; i++)
+			if (addressv4[i] != other.addressv4[i])
+				return false;
+		return true;
+	}
 };
 
 class IPv4Address : public IPAddress {
 	/* Representation: If IP address is a.b.c.d. 
-	 * address[0] => a, address[1] => b, etc.
+	 * addressv4[0] => a, addressv4[1] => b, etc.
 	 */
-	std::bitset<8> address[4];
 
 	bool checked_parse(std::string addr) {
 		uint32_t dots = 0, dig[4] = {0};
@@ -83,7 +103,7 @@ class IPv4Address : public IPAddress {
 		if (dots == 3 && !((dig[0] & mask) || (dig[1] & mask)
 			|| (dig[2] & mask) || (dig[3] & mask))){
 			for(int i = 0; i < 4; i++)
-				address[i] = std::bitset<8>(dig[i]);
+				addressv4[i] = std::bitset<8>(dig[i]);
 			return true;
 		}
 		return false;
@@ -98,17 +118,17 @@ public:
 	}
 
 	std::string to_string() {
-		return std::to_string(address[0].to_ulong()) + "." 
-				+ std::to_string(address[1].to_ulong()) + "."
-				+ std::to_string(address[2].to_ulong()) + "."
-				+ std::to_string(address[3].to_ulong());
+		return std::to_string(addressv4[0].to_ulong()) + "." 
+				+ std::to_string(addressv4[1].to_ulong()) + "."
+				+ std::to_string(addressv4[2].to_ulong()) + "."
+				+ std::to_string(addressv4[3].to_ulong());
 	}
 
 	uint32_t to_ulong() {
 		assert(version == 4);
 		uint32_t addr = 0;
 		for(int i = 0; i < 4; i++) {
-			addr += address[i].to_ulong() << (8 * i);
+			addr += addressv4[i].to_ulong() << (8 * i);
 		}
 		return addr;
 	}
@@ -116,7 +136,7 @@ public:
 	BitArray pack() const {
 		std::string res;
 		for(int i = 0; i < 4; i++) 
-			res.push_back(address[i].to_ulong());
+			res.push_back(addressv4[i].to_ulong());
 		return res;
 	}
 };
@@ -266,15 +286,6 @@ public:
 bool operator==(IPv4Address a, IPv4Address b) {
 	assert (a.version == b.version);
 	return a.to_ulong() == b.to_ulong();
-}
-
-bool operator==(IPAddress a, IPAddress b) {
-	if (a.version != b.version)
-		return false;
-	if (a.version == 4)
-		return a.to_ulong() == b.to_ulong();
-	std::cerr << "Equality check for IPv6 UNIMPLEMENTED" << std::endl;
-	exit(-1); 
 }
 
 #endif

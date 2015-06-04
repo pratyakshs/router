@@ -32,3 +32,10 @@ build/*
 
 # temporary files
 temp*
+
+# topology files
+*.json
+
+# config giles
+*.conf
+

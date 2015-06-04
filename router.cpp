@@ -17,7 +17,6 @@
  * :mod:`router` --- SCION edge router
  * ===========================================
  */
-
 #include <thread>
 #include "scion_elem.cpp"
 #include "lib/packet/pcb.cpp"
@@ -74,11 +73,6 @@ class Router : public SCIONElement {
      *     those extensions that execute after routing.
      * :vartype post_ext_handlers: dict
      */
-
-    SCIONAddr addr;
-    Topology topology;
-    Config config;
-    std::map<int, SCIONAddr> ifid2addr;
     InterfaceElement interface;
     std::map<int, HandlerFunction> pre_ext_handlers;
     std::map<int, HandlerFunction> post_ext_handlers;
@@ -90,8 +84,7 @@ public:
            std::string config_file, 
            std::map<int, HandlerFunction> pre_ext_handlers,
            std::map<int, HandlerFunction> post_ext_handlers) 
-            : SCIONElement("er", topo_file, config_file, router_id, 
-                           *(addr.host_addr)) {
+            : SCIONElement("er", topo_file, config_file, router_id) {
         /**
          * Constructor.
          * :param addr: the router address.
@@ -361,7 +354,7 @@ public:
         }
         else {
             if (iface)
-                next_hop.addr = ifid2addr[iface].host_addr->to_string();
+                next_hop.addr = ifid2addr[iface].to_string();
             else if (ptype == PacketType::PATH_MGMT)
                 next_hop.addr = topology.path_servers[0].addr->to_string();
             else {  // last opaque field on the path, send the packet to the dst
@@ -402,9 +395,9 @@ public:
                 CommonOpaqueField *opaque_field = spkt.hdr.get_relative_of(1);
                 if (next_iof->up_flag)  // TODO replace by get_first_hop
                     next_hop.addr = 
-                      ifid2addr[opaque_field->ingress_if].host_addr->to_string();
+                      ifid2addr[opaque_field->ingress_if].to_string();
                 else next_hop.addr = 
-                       ifid2addr[opaque_field->egress_if].host_addr->to_string();
+                       ifid2addr[opaque_field->egress_if].to_string();
                 // logging.debug("send() here, find next hop0.")
                 send(spkt, next_hop);
             }
@@ -418,7 +411,7 @@ public:
                 spkt.hdr.increase_of(2);
                 CommonOpaqueField *opaque_field = spkt.hdr.get_relative_of(2);
                 next_hop.addr = 
-                    ifid2addr[opaque_field->egress_if].host_addr->to_string();
+                    ifid2addr[opaque_field->egress_if].to_string();
                 // logging.debug("send() here, find next hop1");
                 send(spkt, next_hop);
             }
@@ -440,7 +433,7 @@ public:
             prev_hof = spkt.hdr.get_relative_of(1);
             if (verify_of(curr_hof, prev_hof, timestamp)) {
                 next_hop.addr = 
-                    ifid2addr[spkt.hdr.get_current_of()->ingress_if].host_addr->to_string();
+                    ifid2addr[spkt.hdr.get_current_of()->ingress_if].to_string();
                 // logging.debug("send() here, next: %s", next_hop)
                 send(spkt, next_hop);
             }

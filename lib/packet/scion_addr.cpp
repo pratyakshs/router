@@ -62,7 +62,8 @@ public:
     SCIONAddr(uint16_t isd_id, uint64_t ad_id, const IPAddress * host_addr) {
         this->isd_id = isd_id;
         this->ad_id = ad_id;
-        this->host_addr = (IPAddress*)host_addr; ///? hacky
+        this->host_addr = new IPAddress;
+        *(this->host_addr) = *(IPAddress*)host_addr; ///? hacky
         int host_addr_len;
         if (this->host_addr->version == 4)
             host_addr_len = IPV4LENGTH; // 8

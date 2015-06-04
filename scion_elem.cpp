@@ -56,6 +56,7 @@ class SCIONElement {
      * :ivar addr: a `SCIONAddr` object representing the server address.
      * :vartype addr: :class:`lib.packet.scion_addr.SCIONAddr`
      */
+public:
     Topology topology;
     Config config;
     std::map<int, IPAddress> ifid2addr;
@@ -64,10 +65,8 @@ class SCIONElement {
     int local_socket;
     std::vector<int> sockets;
 
-public:
     SCIONElement(std::string server_type, std::string topo_file, 
-                 std::string config_file, std::string server_id, 
-                 IPAddress &host_addr) {
+                 std::string config_file, std::string server_id) {
         /**
          * Create a new ServerBase instance.
          * :param server_type: a shorthand of the server type, e.g. "bs" for a
@@ -87,6 +86,7 @@ public:
          * :returns: the newly-created ServerBase instance
          * :rtype: ServerBase
          */
+        IPAddress host_addr;
         parse_topology(topo_file);
         if (server_id.length()) {
             if (server_type == "er") {
@@ -108,10 +108,11 @@ public:
             id = server_type;
         }
         addr = SCIONAddr(topology.isd_id, topology.ad_id, &host_addr);
+        
+
         if (config_file.length())
             parse_config(config_file);
         construct_ifid2addr_map();
-
         local_socket = socket(AF_INET, SOCK_DGRAM, 0);
         int val = 1;
         setsockopt(local_socket, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));

@@ -245,7 +245,7 @@ public:
          * 
          * :param topology_file: path to the topology file
          * :type topology_file: str
-         */
+         */        
         rapidjson::Document d;
         try{
             FILE* fp = fopen(topology_file.c_str(), "r");
@@ -259,7 +259,6 @@ public:
             // logging.error("Config: JSON format error.")
             return;
         }
-        
         is_core_ad = (d["Core"].GetInt() == 1);
         isd_id = d["ISDID"].GetInt();
         ad_id = d["ADID"].GetInt();
@@ -311,7 +310,6 @@ public:
             }
             RouterElement edge_router(router_dict, interface_dict, 
                                       itr->name.GetString());
-
             if (edge_router.interface.neighbor_type == "PARENT")
                 parent_edge_routers.push_back(edge_router);
             else if (edge_router.interface.neighbor_type == "CHILD")
