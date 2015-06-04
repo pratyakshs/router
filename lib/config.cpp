@@ -51,8 +51,8 @@ class Config {
      * :ivar cert_chain_version: int
      */
 public:
-    int master_of_gen_key;
-    int master_ad_key; 
+    uint64_t master_of_gen_key;
+    uint64_t master_ad_key; 
     int n_registered_paths; 
     int n_shortest_up_paths;
     int propagation_time;
@@ -109,8 +109,8 @@ public:
             // logging.error("Config: JSON format error.")
             return;
         }
-        master_of_gen_key = d["MasterOFGKey"].GetInt();
-        master_ad_key = d["MasterADKey"].GetInt();
+        master_of_gen_key = d["MasterOFGKey"].GetUint64();
+        master_ad_key = d["MasterADKey"].GetUint64();
         n_registered_paths = d["NumRegisteredPaths"].GetInt();
         n_shortest_up_paths = d["NumShortestUPs"].GetInt();
         propagation_time = d["PropagateTime"].GetInt();
