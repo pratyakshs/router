@@ -244,7 +244,6 @@ class IPv6Address : public IPAddress {
 		for(int i = 0; i < 8; i++) {
 			address[i] = std::bitset<16>(dig[i]);
 			correct &= !(dig[i] & mask);
-			// std::cout << address[i] << std::endl;
 		}
 		return correct;
 	}

@@ -43,7 +43,9 @@ public:
 
     void parse(const std::string &raw) {}
 
-    BitArray pack() const {}
+    BitArray pack() const {
+        return BitArray();
+    }
 
     void reverse() {
         /**

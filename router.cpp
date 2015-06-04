@@ -159,7 +159,6 @@ public:
             dest.sin_family = AF_INET;
             inet_pton(AF_INET, next_hop.addr.c_str(), &dest.sin_addr.s_addr);
             dest.sin_port = htons(next_hop.port);
-
             sendto(remote_socket, buf.c_str(), buf.length(), 0, 
                (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
         }
@@ -213,7 +212,7 @@ public:
             send(ifid_req, next_hop, false);
             // logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
                          // ifid_req.request_id, ifid_req.reply_id)
-            sleep(IFID_PKT_TOUT);
+            usleep(1000000 * IFID_PKT_TOUT);
         }
     }
 

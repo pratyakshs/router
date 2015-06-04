@@ -60,6 +60,10 @@ public:
 		array.clear();
 	}
 
+	~BitArray() {
+		array.clear();
+	}
+	
 	unsigned long long get_subarray(int pos, uint32_t len) const {
 		/**
 		 * Converts `len` bits starting from `pos` to decimal
@@ -89,7 +93,7 @@ public:
 		}
 
 		std::bitset<64> _val(val);
-		for(int i = len-1; i >= 0; i++) 
+		for(int i = len-1; i >= 0; i--) 
 			array.push_back(_val[i]);
 	}
 

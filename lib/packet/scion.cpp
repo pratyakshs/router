@@ -147,7 +147,6 @@ public:
          */
         uint64_t types = ((version << 12) | (dst_addr_len << 6) |
                 src_addr_len);
-
         BitArray res;
         res.append(types, 16);
         res.append(total_len, 16);
@@ -359,6 +358,8 @@ public:
                 it != extension_hdrs.end(); it++) {
             res += it->pack();
         }
+        
+
         return res;
     }
 
