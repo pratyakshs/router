@@ -11,4 +11,4 @@ build/%.o: $(PROJECT_ROOT)/%.cpp
 	# echo $(OBJ_FILES)
 
 all: router.cpp
-	g++ -g -std=c++11 -Iinclude -o router router.cpp
+	g++ -g -pthread -std=c++11 -Iinclude -o router router.cpp
