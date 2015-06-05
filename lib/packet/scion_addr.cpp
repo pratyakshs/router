@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 #include "IPAddress.h"
+#include "easylogging++.h"
 
 // ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
 // figure out an alternative
@@ -76,9 +77,8 @@ public:
         // assert isinstance(raw, bytes)
         addr_len = raw.length();
         if (addr_len < ISD_AD_LEN) {
-            // logging.warning("SCIONAddr: Data too short for parsing, len: %u",
-            //                  addr_len)
-            // add logging warning.
+            LOG(WARNING) << "SCIONAddr: Data too short for parsing, len: " 
+                         << addr_len;
             return;
         }
         /****UNIMPLEMENTED****/

@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <bitset>
 #include "BitArray.h"
+#include "easylogging++.h"
 
 class OpaqueFieldType {
     /* 
@@ -154,7 +155,7 @@ public:
         this->raw = raw;
         int dlen = raw.length();
         if (dlen < HopOpaqueField::LEN) {
-            // logging.warning("HOF: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "HOF: Data too short for parsing, len: " << dlen;
             return;
         }
         BitArray bits(raw);
@@ -237,7 +238,7 @@ public:
         this->raw = raw;
 
         if (dlen < InfoOpaqueField::LEN) {
-            // logging.warning("IOF: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "IOF: Data too short for parsing, len: " << dlen;
             return;
         }
         BitArray bits(raw);
@@ -333,7 +334,7 @@ public:
         this->raw = raw;
 
         if (dlen < TRCField::LEN) {
-            // logging.warning("TRCF: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "TRCF: Data too short for parsing, len: " << dlen;
             return;
         }
         BitArray bits(raw);
@@ -417,7 +418,7 @@ public:
         this->raw = raw;
 
         if (dlen < SupportSignatureField::LEN) {
-            // logging.warning("SSF: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "SSF: Data too short for parsing, len: " << dlen;
             return;
         }
 
@@ -504,7 +505,7 @@ public:
         this->raw = raw;
         
         if (dlen < SupportPeerField::LEN) {
-            // logging.warning("SPF: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "SPF: Data too short for parsing, len: " << dlen;
             return;
         }
 
@@ -605,7 +606,7 @@ public:
         this->raw = raw;
 
         if (dlen < SupportPCBField::LEN) {
-            // logging.warning("SPCBF: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "SPCBF: Data too short for parsing, len: " << dlen;
             return;
         }
 

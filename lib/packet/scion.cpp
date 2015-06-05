@@ -21,6 +21,7 @@
 
 #include <vector>
 #include <cstdlib>
+#include <iomanip>
 #include "IPAddress.h"
 #include "BitArray.h"
 #include "ext_hdr.cpp"
@@ -124,8 +125,9 @@ public:
          */
         int dlen = raw.length();
         if (dlen < SCIONCommonHdr::LEN) {
-            // logging.warning("Data too short to parse SCION common header: "
-            // "data len %u", dlen)
+            LOG(WARNING) 
+              << "Data too short to parse SCION common header: data len " 
+              << dlen;
             return;
         }
         BitArray bits(raw);
@@ -285,8 +287,8 @@ public:
          */
         int dlen = raw.length();
         if (dlen < SCIONHeader::MIN_LEN) {
-            // logging.warning("Data too short to parse SCION header: "
-                            // "data len %u", dlen)
+            LOG(WARNING) << "Data too short to parse SCION header: data len "
+                         << dlen;
             return;
         }
         int offset = 0;
@@ -318,8 +320,8 @@ public:
                 path = PeerPath(raw.substr(offset, 
                                 common_hdr.hdr_len));
             else{
-                // logging.info("Can not parse path in packet: Unknown type %x",
-                             // info.info)
+                LOG(INFO) << "Can not parse path in packet: Unknown type "
+                          << std::hex << info.info << std::dec;
             }
         }
         offset = common_hdr.hdr_len;
@@ -332,8 +334,8 @@ public:
             BitArray bits(raw.substr(offset, 2));
             int next_hdr_type = bits.get_subarray(0, 8);
             int hdr_len = bits.get_subarray(8, 8);
-            // logging.info("Found extension hdr of type %u with len %u",
-                         // cur_hdr_type, hdr_len)
+            LOG(INFO) << "Found extension hdr of type " << cur_hdr_type 
+                          << " with len " << hdr_len;
             if (cur_hdr_type == ICNExtHdr::TYPE) 
                 extension_hdrs.push_back(
                     ICNExtHdr(raw.substr(offset, hdr_len)));
@@ -544,8 +546,8 @@ public:
         int dlen = raw.length();
         this->raw = raw;
         if (dlen < SCIONPacket::MIN_LEN) {
-            // logging.warning("Data too short to parse SCION packet: "
-                            // "data len %u", dlen)
+            LOG(WARNING) 
+              << "Data too short to parse SCION packet: data len " << dlen;
             return;
         }
         hdr = SCIONHeader(raw);

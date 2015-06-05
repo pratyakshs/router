@@ -40,3 +40,5 @@ temp*
 # config giles
 *.conf
 
+# log files
+logs/

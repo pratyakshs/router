@@ -21,11 +21,12 @@
 #include "scion_elem.cpp"
 #include "lib/packet/pcb.cpp"
 
+INITIALIZE_EASYLOGGINGPP
+
 #define IFID_PKT_TOUT 0.5
 
 class NextHop;
 typedef void (*HandlerFunction)(SCIONPacket, NextHop);
-
 
 class NextHop {
     /**
@@ -126,7 +127,8 @@ public:
             // log error on binding            
         }
         sockets.push_back(remote_socket);
-        // logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
+        LOG(INFO) << "IP " << interface.addr->to_string() << ":"
+                  << interface.udp_port;
     }
 
     void run() {
@@ -149,7 +151,7 @@ public:
          *     a remote socket).
          * :type use_local_socket: bool
          */
-        // logging.info("Sending packet to %s", next_hop)
+        LOG(INFO) << "Sending packet to " << next_hop.to_string();
         handle_extensions(packet, next_hop, false);
         if (use_local_socket)
             SCIONElement::send(packet, next_hop.addr, next_hop.port);
@@ -192,7 +194,7 @@ public:
         }
 
         if (ext || l < spkt.hdr.extension_hdrs.size()) {
-            // logging.warning("Extensions terminated incorrectly.")
+            LOG(WARNING) << "Extensions terminated incorrectly.";
         }
     }
 
@@ -210,8 +212,9 @@ public:
         IFIDPacket ifid_req(src, dst_isd_ad, interface.if_id);
         while (true) {
             send(ifid_req, next_hop, false);
-            // logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
-                         // ifid_req.request_id, ifid_req.reply_id)
+            LOG(INFO) << "Sending IFID_PKT to router: req_id:" 
+                      << ifid_req.request_id << ", rep_id:" 
+                      << ifid_req.reply_id;
             usleep(1000000 * IFID_PKT_TOUT);
         }
     }
@@ -225,11 +228,11 @@ public:
          * :param next_hop: the next hop of the request packet.
          * :type next_hop: :class:`NextHop`
          */
-        // logging.info('IFID_PKT received, len %u', len(packet))
+        LOG(INFO) << "IFID_PKT received, len " << packet.length();
         IFIDPacket ifid_req(packet);
         // Forward 'alive' packet to all BSes (to inform that neighbor is alive).
         ifid_req.reply_id = interface.if_id;  // BS must determine interface.
-        // logging.debug("Forwarding IFID_PKT to BSes")
+        LOG(DEBUG) << "Forwarding IFID_PKT to BSes";
         for (auto bs : topology.beacon_servers) {
             next_hop.addr = bs.addr->to_string();
             send(ifid_req, next_hop);
@@ -250,7 +253,7 @@ public:
         PathConstructionBeacon beacon(packet);
         if (from_bs) {
             if (interface.if_id != beacon.pcb.trcf.if_id) {
-                // logging.error("Wrong interface set by BS.")
+                LOG(ERROR) << "Wrong interface set by BS.";
                 return;
             }
             next_hop.addr = interface.to_addr->to_string();
@@ -347,8 +350,8 @@ public:
                     send(spkt, next_hop, false);
             }
             else {
-                // logging.error("1 interface mismatch %u != %u", iface,
-                              // self.interface.if_id)
+                LOG(ERROR) << "1 interface mismatch " << iface <<  " != " 
+                           << interface.if_id; 
             }
         }
         else {
@@ -363,7 +366,7 @@ public:
             if (verify_of(curr_hof, prev_hof, timestamp))
                 send(spkt, next_hop);
         }
-        // logging.debug("normal_forward()")
+        LOG(DEBUG) << "normal_forward()";
     }
 
     void crossover_forward(SCIONPacket spkt, NextHop next_hop, 
@@ -379,7 +382,7 @@ public:
          * :param info: the type of opaque field.
          * :type info: :class:`lib.packet.opaque_field.OpaqueFieldType`
          */
-        // logging.debug("crossover_forward()")
+        LOG(DEBUG) << "crossover_forward()";
         CommonOpaqueField *curr_hof = spkt.hdr.get_current_of();
         CommonOpaqueField *prev_hof = NULL;
         bool is_on_up_path = spkt.hdr.is_on_up_path();
@@ -397,11 +400,11 @@ public:
                       ifid2addr[opaque_field->ingress_if].to_string();
                 else next_hop.addr = 
                        ifid2addr[opaque_field->egress_if].to_string();
-                // logging.debug("send() here, find next hop0.")
+                LOG(DEBUG) << "send() here, find next hop0.";
                 send(spkt, next_hop);
             }
             else {
-                // logging.error("Mac verification failed.")
+                LOG(ERROR) << "Mac verification failed.";
             }
         }
         else if (info == OpaqueFieldType::NON_TDC_XOVR) {
@@ -411,7 +414,7 @@ public:
                 CommonOpaqueField *opaque_field = spkt.hdr.get_relative_of(2);
                 next_hop.addr = 
                     ifid2addr[opaque_field->egress_if].to_string();
-                // logging.debug("send() here, find next hop1");
+                LOG(DEBUG) << "send() here, find next hop1";
                 send(spkt, next_hop);
             }
         }
@@ -423,7 +426,7 @@ public:
                     is_regular = spkt.hdr.get_current_of()->is_regular();
                 }
                 spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;    
-                // logging.debug("TODO send() here, find next hop2")
+                LOG(DEBUG) << "TODO send() here, find next hop2";
             }
         }
         else if (info == OpaqueFieldType::INTRATD_PEER 
@@ -433,12 +436,12 @@ public:
             if (verify_of(curr_hof, prev_hof, timestamp)) {
                 next_hop.addr = 
                     ifid2addr[spkt.hdr.get_current_of()->ingress_if].to_string();
-                // logging.debug("send() here, next: %s", next_hop)
+                LOG(DEBUG) << "send() here, next: " << next_hop.to_string();
                 send(spkt, next_hop);
             }
         }
         else {
-            // logging.warning("Unknown case %u", info)
+            LOG(WARNING) << "Unknown case " << info;
         }
     }
 
@@ -519,7 +522,7 @@ public:
 
         next_hop.addr = interface.to_addr->to_string();
         next_hop.port = interface.to_udp_port;
-        // logging.debug("sending to dst6 %s", next_hop);
+        LOG(DEBUG) << "sending to dst6 " << next_hop.to_string();
         send(spkt, next_hop, false);
     }
 
@@ -576,7 +579,8 @@ public:
             relay_cert_server_packet(spkt, next_hop, from_local_ad);
         else {
             if (ptype == PacketType::DATA) {
-                // logging.debug("DATA type %s, %s", ptype, spkt)
+                LOG(DEBUG) << "DATA type " << ptype.to_string() << ", " 
+                           << spkt.to_string();
             }
             process_packet(spkt, next_hop, from_local_ad, ptype);
         }
@@ -587,10 +591,9 @@ int main(int argc, char* argv[]) {
     /**
      * Initializes and starts router.
      */
-    // init_logging()
     // handle_signals()
     if (argc != 4) {
-        // logging.error("run: %s router_id topo_file conf_file", sys.argv[0])
+        LOG(ERROR) << "run: " << argv[0] << " router_id topo_file conf_file";
         exit(-1);
     }
     // for pre_ext_handlers and post_ext_handlers.

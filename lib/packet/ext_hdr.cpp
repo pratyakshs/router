@@ -48,8 +48,8 @@ public:
     void parse(const std::string &raw) {
         int dlen = raw.length();
         if (dlen < ExtensionHeader::MIN_LEN) {
-            // logging.warning("Data too short to parse extension hdr: "
-                            // "data len %u", dlen)
+            LOG(WARNING) << "Data too short to parse extension hdr: "
+                         << "data len " << dlen;
             return;
         }
         BitArray bits(raw);
@@ -103,8 +103,8 @@ public:
     void parse(const std::string &raw) {
         int dlen = raw.length();
         if (dlen < ExtensionHeader::MIN_LEN) {
-            // logging.warning("Data too short to parse ICN extension hdr: "
-                            // "data len %u", dlen)
+            LOG(WARNING) << "Data too short to parse ICN extension hdr: "
+                         << "data len " << dlen;
             return;
         }
         BitArray bits(raw);

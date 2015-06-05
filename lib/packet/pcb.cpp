@@ -106,7 +106,7 @@ public:
         this->raw = raw;
         int dlen = raw.length();
         if (dlen < PCBMarking::LEN) {
-            // logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "PCBM: Data too short for parsing, len: " << dlen;
             return;
         }
         BitArray bits(raw.substr(0, 8));
@@ -206,7 +206,7 @@ public:
         this->raw = raw;
         int dlen = raw.length();
         if (dlen < PeerMarking::LEN) {
-            // logging.warning("PM: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "PM: Data too short for parsing, len: " << dlen; 
             return;
         }
         BitArray bits(raw.substr(0, 8));
@@ -298,7 +298,7 @@ class ADMarking : public Marking {
         this->raw = raw;
         int dlen = raw.length();
         if (dlen < ADMarking::LEN) {
-            // logging.warning("AD: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "AD: Data too short for parsing, len: " << dlen; 
             return;
         }
         pcbm = PCBMarking(raw.substr(0, PCBMarking::LEN));
@@ -398,8 +398,8 @@ class PathSegment : public Marking {
         size = raw.length();
         int dlen = raw.length();
         if (dlen < PathSegment::LEN) {
-            // logging.warning("PathSegment: Data too short for parsing, " +
-                            // "len: %u", dlen)
+            LOG(WARNING) << "PathSegment: Data too short for parsing, len: "
+                         << dlen;
             return;
         }
         // Populate the info and ROT OFs from the first and second 8-byte blocks
@@ -591,7 +591,7 @@ class PathSegment : public Marking {
          */
         int dlen = raw.length();
         if (dlen < PathSegment::LEN) {
-            // logging.warning("HPB: Data too short for parsing, len: %u", dlen)
+            LOG(WARNING) << "HPB: Data too short for parsing, len: " << dlen; 
             return std::vector<PathSegment>();
         }
         std::vector<PathSegment> pcbs;
