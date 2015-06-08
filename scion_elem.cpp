@@ -126,7 +126,8 @@ public:
             // log error on binding            
         }
         sockets.push_back(local_socket);
-        // logging.info("Bound %s:%u", self.addr.host_addr, SCION_UDP_PORT)
+        LOG(INFO) << server_id << ": bound " << addr.host_addr->to_string() 
+                  << ":" << SCION_UDP_PORT;
     }
 
     SCIONAddr get_addr() {
