@@ -40,16 +40,12 @@ class HeaderBase {
         return;
     }
     
-    virtual BitArray pack() const {}
+    virtual std::string pack() const {}
 
 public:
     virtual int length() {}
 
     virtual std::string to_string() {}
-
-    virtual std::string __repr__() {
-        return to_string();
-    }
 };
 
 class PacketBase {
@@ -75,42 +71,9 @@ public:
         raw = "";
     }
 
-    std::string get_payload() {
-        /* Returns the packet payload.
-         */
-        return payload;
-    }
+    void parse(const std::string &raw) {}
 
-    void set_payload(const std::string &new_payload) {
-        /* Set the packet payload.  Expects bytes or a Packet subclass.
-         */
-        // if (not isinstance(new_payload, PacketBase) and
-        //         not isinstance(new_payload, PayloadBase) and
-        //         not isinstance(new_payload, bytes)):
-        //     raise TypeError("payload must be bytes or packet/payload subclass.")
-        // else:
-        payload = new_payload;
-    }
-
-    HeaderBase get_hdr() {
-        /* Returns the packet header.
-         */
-        return *hdr;
-    }
-
-    void set_hdr(HeaderBase *new_hdr) {
-        /* Sets the packet header. Expects a Header subclass.
-         */
-        hdr = new_hdr;
-    }
-
-    void parse(const std::string &raw) {
-        // pass
-    }
-
-    void pack() const {
-        // pass
-    }
+    std::string pack() const {}
 
     int length() {
         return hdr->length() + payload.length();
