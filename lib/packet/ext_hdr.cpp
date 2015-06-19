@@ -20,6 +20,7 @@
 #define EXT_HDR_CPP
 
 #include "packet_base.cpp"
+#include "easylogging++.h"
 
 class ExtensionHeader : public HeaderBase {
     /**
@@ -33,9 +34,8 @@ public:
     int next_ext;
     uint32_t hdr_len;
     
-    ExtensionHeader() : HeaderBase() {
-        next_ext = 0;
-        hdr_len = 0;
+    ExtensionHeader() {
+        ExtensionHeader("");
     }
 
     ExtensionHeader(const std::string &raw) : HeaderBase() {
@@ -47,7 +47,7 @@ public:
 
     void parse(const std::string &raw) {
         int dlen = raw.length();
-        if (dlen < ExtensionHeader::MIN_LEN) {
+        if (dlen < this->MIN_LEN) {
             LOG(WARNING) << "Data too short to parse extension hdr: "
                          << "data len " << dlen;
             return;
@@ -58,11 +58,11 @@ public:
         parsed = true;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         BitArray res;
         res.append(next_ext, 8);
         res.append(hdr_len, 8);
-        return res;
+        return res.to_string();
     }
 
     int length() {
@@ -87,15 +87,14 @@ public:
     static const int MIN_LEN = 8;
     static const int TYPE = 220;  // Extension header type
     int fwd_flag;
+
     ICNExtHdr(const std::string &raw) : ExtensionHeader() {
-        // Tells the edge router whether to forward this pkt
-        // to the local Content Cache or to the next AD.
+        /**
+         * Initialize an instance of the class ICNExtHdr.
+         * Tells the edge router whether to forward this pkt to the local Content
+         * Cache or to the next AD.
+         */
         fwd_flag = 0;
-//         self.src_addr_len = 0  // src addr len (6 bits)
-//         self.dst_addr_len = 0  // dst addr len (6 bits)
-//         self.cid = 0  // Content ID (20 bytes)
-//         self.src_addr = None  // src address (4, 8 or 20 bytes)
-//         self.dst_addr = None  // dst address (4, 8 or 20 bytes)
         if (raw.length())
             parse(raw);
     }
@@ -111,17 +110,17 @@ public:
         next_ext = bits.get_subarray(0, 8);
         hdr_len = bits.get_subarray(8, 8);
         fwd_flag = bits.get_subarray(16, 8);
-        int rsvd = bits.get_subarray(24, 40);
+        long long rsvd = bits.get_subarray(24, 40);
         parsed = true;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         BitArray res;
         res.append(next_ext, 8);
         res.append(hdr_len, 8);
         res.append(fwd_flag, 8);
         res.append(0, 40);
-        return res;
+        return res.to_string();
     }
 
     int length() {
