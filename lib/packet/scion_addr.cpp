@@ -30,18 +30,60 @@
 #include "IPAddress.h"
 #include "easylogging++.h"
 
-// ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
-// figure out an alternative
+class ISD_AD {
+public:
+    static const int LEN = 4;
+
+    uint16_t isd;
+    uint32_t ad;
+
+    ISD_AD() {
+        /**
+         * Default constructor.
+         */
+        isd = 0;
+        ad = 0;
+    }
+
+    ISD_AD(const uint16_t isd, const uint32_t ad) {
+        /**
+         * Constructor from ISD, AD values.
+         */
+        this->isd = isd;
+        this->ad = ad;
+    }
+    
+    ISD_AD(const std::string &raw) {
+        /**
+         * Constructor from raw data.
+         */
+        BitArray bits(raw);
+        isd = bits.get_subarray(0, 12);
+        ad = bits.get_subarray(12, 20);
+    }
+
+    std::string pack() const {
+        /**
+         * Pack the class variables into a byte string.
+         * returns a 4B long byte string containing ISD ID (first 12 bits),
+                  AD ID (remaining 20 bits).
+         */
+        uint32_t res = isd << 20;
+        res |= ad;
+        BitArray bits;
+        bits.append(res, 32);
+        return bits.to_string();
+    }
+};
 
 class SCIONAddr {
     /* Class for complete SCION addresses.
      */
 public:
     uint16_t isd_id;
-    uint64_t ad_id;
+    uint32_t ad_id;
     int addr_len;
     IPAddress *host_addr;
-    static const int ISD_AD_LEN = 10;  // Size of (isd_id, ad_id) pair in bytes.
 
     SCIONAddr() {
         isd_id = 0;
@@ -60,7 +102,7 @@ public:
     }
 
     // def from_values(cls, isd_id, ad_id, host_addr):
-    SCIONAddr(uint16_t isd_id, uint64_t ad_id, const IPAddress * host_addr) {
+    SCIONAddr(uint16_t isd_id, uint32_t ad_id, const IPAddress * host_addr) {
         this->isd_id = isd_id;
         this->ad_id = ad_id;
         this->host_addr = new IPAddress;
@@ -70,13 +112,13 @@ public:
             host_addr_len = IPV4LENGTH; // 8
         else if (this->host_addr->version == 6)
             host_addr_len = IPV6LENGTH; // 8
-        addr_len = ISD_AD_LEN + host_addr_len;
+        addr_len = ISD_AD::LEN + host_addr_len;
     }
 
     void parse(const std::string &raw) {
         // assert isinstance(raw, bytes)
         addr_len = raw.length();
-        if (addr_len < ISD_AD_LEN) {
+        if (addr_len < ISD_AD::LEN) {
             LOG(WARNING) << "SCIONAddr: Data too short for parsing, len: " 
                          << addr_len;
             return;
@@ -99,12 +141,13 @@ public:
 
     }
 
-    BitArray pack() const {
-        BitArray res;
-        res.append(isd_id, 16);
-        res.append(ad_id, 64);
-        res += BitArray(host_addr->pack());
-        return res;
+    std::string pack() const {
+        /**
+         * Pack the class variables into a byte string.
+         * 
+         * returns a byte string containing ISD ID, AD ID, and host address.
+         */
+        return ISD_AD(isd_id, ad_id).pack() + host_addr->pack();
     }
 
     std::string to_string() {
@@ -112,10 +155,9 @@ public:
                    + ", " + host_addr->to_string() + ")";
     }
 
-    std::pair<uint16_t, uint64_t> get_isd_ad() {
-        return std::make_pair(isd_id, ad_id);
+    ISD_AD get_isd_ad() {
+        return ISD_AD(isd_id, ad_id);
     }
-
 };
 
 #endif

@@ -36,6 +36,7 @@ protected:
     InfoOpaqueField down_segment_info;
     std::vector<HopOpaqueField> down_segment_hops;
     bool parsed;
+
 public:
     PathBase() {
         parsed = false;
@@ -61,10 +62,10 @@ public:
         down_segment_info = temp_info;
 
         // Reverse flags.
-        //? not checking here if up_segment_info
-        //? and down_segment_info were initialized.
-        up_segment_info.up_flag ^= true;
-        down_segment_info.up_flag ^= true;
+        if (!up_segment_info.is_empty)
+            up_segment_info.up_flag ^= true;
+        if (!down_segment_info.is_empty)
+            down_segment_info.up_flag ^= true;
         // Reverse hops.
         std::reverse(up_segment_hops.begin(), up_segment_hops.end());
         std::reverse(down_segment_hops.begin(), down_segment_hops.end());
@@ -129,6 +130,7 @@ class CorePath : public PathBase {
      */
     InfoOpaqueField core_segment_info;
     std::vector<HopOpaqueField> core_segment_hops;
+
  public:
     CorePath(const std::string &raw) : PathBase() {
         if (raw.length())
@@ -176,33 +178,33 @@ class CorePath : public PathBase {
         parsed = true;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Packs the opaque fields and returns a byte array.
          */
-        BitArray bits;
-        if (true) {///? check if up_segment_info is set 
-            bits += up_segment_info.pack();
+        std::string res;
+        if (!up_segment_info.is_empty) {
+            res += up_segment_info.pack();
             for (int i = 0; i < up_segment_hops.size(); i++) 
-                bits += up_segment_hops[i].pack();
+                res += up_segment_hops[i].pack();
         }
-        if (true) {///? check if core_segment_info is set 
-            bits += core_segment_info.pack();
+        if (!core_segment_info.is_empty) {
+            res += core_segment_info.pack();
             for (int i = 0; i < core_segment_hops.size(); i++) 
-                bits += core_segment_hops[i].pack();
+                res += core_segment_hops[i].pack();
         }
-        if (true) {///? check if down_segment_info is set 
-            bits += down_segment_info.pack();
+        if (!down_segment_info.is_empty) {
+            res += down_segment_info.pack();
             for (int i = 0; i < down_segment_hops.size(); i++) 
-                bits += down_segment_hops[i].pack(); 
+                res += down_segment_hops[i].pack(); 
         }
-        return bits;
+        return res;
     }
 
     void reverse() {
         PathBase::reverse();
         std::reverse(core_segment_hops.begin(), core_segment_hops.end());
-        if (true) ///? check if core_segment_info is not None
+        if (!core_segment_info.is_empty) 
             core_segment_info.up_flag ^= true;
     }
 
@@ -210,22 +212,23 @@ class CorePath : public PathBase {
         /**
          * Returns the opaque field for the given index.
          */
-        ///? check is up_segment_info, core_segment_info are not NULL.
-        if (index == 0)
-            return &up_segment_info;
-        if (index <= up_segment_hops.size()) 
-            return &up_segment_hops[index - 1];
-        if (index == up_segment_hops.size() + 1)
-            return &core_segment_info;
-        if (index <= up_segment_hops.size() + 1 + core_segment_hops.size())
-            return &core_segment_hops[index - 2 - up_segment_hops.size()];
-        if (index == up_segment_hops.size() + 2 + core_segment_hops.size())
-            return &down_segment_info;
-        if (index <= up_segment_hops.size() + 2 + core_segment_hops.size() 
-                                            + down_segment_hops.size())
-            return &down_segment_hops[index - 3 - core_segment_hops.size()
-                                            - down_segment_hops.size()];
-        return NULL;
+        std::vector<CommonOpaqueField*> tmp;
+        tmp.push_back(&up_segment_info);
+        for (int i = 0; i < up_segment_hops.size(); i++) 
+            tmp.push_back(&up_segment_hops[i]);
+        if (!core_segment_info.is_empty) {
+            tmp.push_back(&core_segment_info);
+            for (int i = 0; i < core_segment_hops.size(); i++)
+                tmp.push_back(&core_segment_hops[i]);
+        }
+        if (!down_segment_info.is_empty) {
+            tmp.push_back(&down_segment_info);
+            for (int i = 0; i < down_segment_hops.size(); i++)
+                tmp.push_back(&down_segment_hops[i]);
+        }
+        if (index >= tmp.size())
+            return NULL;
+        return tmp[index];
     }
 
     CorePath(InfoOpaqueField up_inf, std::vector<HopOpaqueField> up_hops,
@@ -295,8 +298,6 @@ class CrossOverPath : public PathBase {
     HopOpaqueField down_segment_upstream_ad;
 public:
     CrossOverPath(const std::string &raw) : PathBase() {
-        // up_segment_upstream_ad = HopOpaqueField("");
-        // down_segment_upstream_ad = HopOpaqueField("");
         if (raw.length())
             parse(raw);
     }
@@ -332,12 +333,11 @@ public:
         parsed = true;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Packs the opaque fields and returns a byte array.
          */
-        BitArray res;
-        res += up_segment_info.pack();
+        std::string res = up_segment_info.pack();
         for (int i = 0; i < up_segment_hops.size(); i++) 
             res += up_segment_hops[i].pack();
         
@@ -455,11 +455,11 @@ public:
         parsed = true;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Packs the opaque fields and returns a byte array.
          */
-        BitArray res;
+        std::string res;
         res += up_segment_info.pack();
         for (int i = 0; i < up_segment_hops.size(); i++) 
             res += up_segment_hops[i].pack();

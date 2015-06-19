@@ -60,8 +60,8 @@ public:
 		return 0;
 	}
 
-	virtual BitArray pack() {
-		return BitArray();
+	virtual std::string pack() {
+		return "";
 	}
 
 	void operator=(IPAddress &other) {
@@ -133,7 +133,7 @@ public:
 		return addr;
 	}
 
-	BitArray pack() const {
+	std::string pack() const {
 		std::string res;
 		for(int i = 0; i < 4; i++) 
 			res.push_back(addressv4[i].to_ulong());

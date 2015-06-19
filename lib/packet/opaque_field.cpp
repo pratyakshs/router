@@ -59,12 +59,14 @@ protected:
 public:
     uint32_t info;
     static const int LEN = 8;
+    bool is_empty;
     
     OpaqueField() {
         info = 0;  // TODO verify path.PathType in that context
         type = 0;
         parsed = false;
         raw = "";
+        is_empty = true;
     }
 
     void parse(const std::string &raw) {
@@ -135,6 +137,7 @@ public:
 
     HopOpaqueField() {
         HopOpaqueField("");
+        is_empty = true;
     }
 
     HopOpaqueField(const std::string &raw) : CommonOpaqueField() {
@@ -145,6 +148,7 @@ public:
             mac.push_back(0x00);
         if (raw.length())
             parse(raw);
+        is_empty = false;
     }
 
     void parse(const std::string &raw) {
@@ -184,6 +188,7 @@ public:
             for (int i = 0; i < MAC_LEN; i++)
                 mac.push_back(0x00);
         this->mac = mac;
+        is_empty = false;
     }
 
     std::string pack() const {
@@ -231,6 +236,7 @@ public:
         up_flag = false;
         if (raw.length())
             parse(raw);
+        is_empty = false;
     }
 
     void parse(const std::string &raw) {
@@ -270,6 +276,7 @@ public:
         this->timestamp = timestamp;
         this->isd_id = isd_id;
         this->hops = hops;
+        is_empty = false;
     }
 
     std::string pack() const {
@@ -327,6 +334,7 @@ public:
         reserved = 0;
         if (raw.length())
             parse(raw);
+        is_empty = false;
     }
 
     void parse(const std::string &raw) {
@@ -359,6 +367,7 @@ public:
         this->trc_version = trc_version;
         this->if_id = if_id;
         this->reserved = reserved;
+        is_empty = false;
     }
 
     std::string pack() const {
