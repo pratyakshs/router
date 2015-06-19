@@ -156,7 +156,7 @@ public:
         if (use_local_socket)
             SCIONElement::send(packet, next_hop.addr, next_hop.port);
         else {
-            std::string buf = packet.pack().get_string();
+            std::string buf = packet.pack().to_string();
             struct sockaddr_in dest;
             dest.sin_family = AF_INET;
             inet_pton(AF_INET, next_hop.addr.c_str(), &dest.sin_addr.s_addr);

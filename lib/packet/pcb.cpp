@@ -619,7 +619,7 @@ class PathSegment : public Marking {
          */
         std::string pcbs_list;
         for (int i = 0; i < pcbs.size(); i++) 
-            pcbs_list += pcbs[i].pack().get_string();
+            pcbs_list += pcbs[i].pack().to_string();
         return pcbs_list;
     }
 
@@ -671,7 +671,7 @@ public:
     }
 
     BitArray pack() {
-        payload = pcb.pack().get_string();
+        payload = pcb.pack().to_string();
         return SCIONPacket::pack();
     }
 };

@@ -716,7 +716,7 @@ public:
         bits.append(isd_id, 16);
         bits.append(ad_id, 64);
         bits.append(version, 32);
-        payload = bits.get_string();
+        payload = bits.to_string();
     }
 };
 
@@ -803,7 +803,7 @@ class CertChainReply : public SCIONPacket {
         bits.append(isd_id, 16);
         bits.append(ad_id, 64);
         bits.append(version, 32);
-        payload = bits.get_string();
+        payload = bits.to_string();
     }
 };
 
@@ -897,7 +897,7 @@ public:
         bits.append(src_ad, 64);
         bits.append(isd_id, 16);
         bits.append(version, 32);
-        payload = bits.get_string();
+        payload = bits.to_string();
     }
 };
 
@@ -971,7 +971,7 @@ public:
         BitArray bits;
         bits.append(isd_id, 16);
         bits.append(version, 32);
-        payload = bits.get_string() + trc;
+        payload = bits.to_string() + trc;
     }
 };
 

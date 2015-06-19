@@ -129,7 +129,7 @@ public:
 		return *this;
 	}
 
-	std::string get_string() const {
+	std::string to_string() const {
 		std::string s;
 		assert(!(array.size() & 0x8)); // number of bits must be multiple of 8
 		int len = array.size() >> 3;
