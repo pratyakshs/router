@@ -81,15 +81,8 @@ public:
     int curr_iof_p; // Pointer inside the packet to the current IOF.
     int curr_of_p; // Pointer to the current opaque field.
 
-    SCIONCommonHdr() : HeaderBase() {
-        version = 0;
-        src_addr_len = 0;
-        dst_addr_len = 0;
-        total_len = 0;
-        curr_iof_p = 0;
-        curr_of_p = 0;
-        next_hdr = 0;
-        hdr_len = 0;
+    SCIONCommonHdr() {
+      SCIONCommonHdr("");
     }
 
     SCIONCommonHdr(const std::string &raw) :  HeaderBase() {
@@ -143,7 +136,7 @@ public:
         parsed = true;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Returns the common header as 8 byte binary string.
          */
@@ -156,7 +149,7 @@ public:
         res.append(curr_of_p, 8);
         res.append(next_hdr, 8);
         res.append(hdr_len, 8);
-        return res;
+        return res.to_string();
     }
 
     std::string to_string() {
@@ -182,7 +175,6 @@ public:
     SCIONAddr src_addr;
     vector<ExtensionHeader> extension_hdrs;
     bool path_set;
-
     SCIONCommonHdr common_hdr;
 
     SCIONHeader() {
@@ -218,13 +210,6 @@ public:
         dst_addr = dst;
     }
 
-    PathBase get_path() {
-        /** 
-         * Returns the path in the header.
-         */
-        return path;
-    }
-
     void set_path(PathBase path) {
         /**
          * Sets path to 'path' and updates necessary fields..
@@ -242,18 +227,10 @@ public:
         }
     }
 
-    vector<ExtensionHeader> get_extension_hdrs() {
-        /**
-         * Returns the extension headers.
-         */
-        return extension_hdrs;
-    }
-
     void set_ext_hdrs(vector<ExtensionHeader> ext_hdrs) {
         /**
          * Sets extension headers and updates necessary fields.
          */
-        ///? can use std::vector::clear() too!
         while (!extension_hdrs.empty())
             pop_ext_hdr();
         for (int i = 0; i < ext_hdrs.size(); i++)
@@ -348,11 +325,11 @@ public:
         parsed = true;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Packs the header and returns a byte array.
          */
-        BitArray res = common_hdr.pack() + src_addr.pack() + dst_addr.pack();
+        std::string res = common_hdr.pack() + src_addr.pack() + dst_addr.pack();
         // if path is not None:
         if (true) // should check if path isn't empty
             res += path.pack();
@@ -360,8 +337,6 @@ public:
                 it != extension_hdrs.end(); it++) {
             res += it->pack();
         }
-        
-
         return res;
     }
 
@@ -370,7 +345,7 @@ public:
          * Returns the current opaque field as pointed by the 
          * current_of field in the common_hdr.
          */
-        if (false) // check if path is none
+        if (false) ///? check if path is none
             return NULL;
         int offset = (common_hdr.curr_of_p - (common_hdr.src_addr_len +
                   common_hdr.dst_addr_len));
@@ -532,7 +507,7 @@ public:
     }
 
     void set_payload(const std::string &payload) {
-        PacketBase::set_payload(payload);
+        this->payload = payload;
         // Update payload_len and total len of the packet.
         hdr.common_hdr.total_len -= payload_len;
         payload_len = payload.length();
@@ -557,12 +532,12 @@ public:
         parsed = true;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Packs the header and the payload and returns a byte array.
          */
-        BitArray res = hdr.pack();
-        res += BitArray(payload);
+        std::string res = hdr.pack();
+        res += payload;
         return res;
     }
 };
@@ -588,7 +563,7 @@ public:
         request_id = (payload[2] << 8) | payload[3];
     }
 
-    IFIDPacket(SCIONAddr src, std::pair<uint16_t, uint64_t> dst_isd_ad,
+    IFIDPacket(SCIONAddr src, ISD_AD dst_isd_ad,
                int request_id) : SCIONPacket() {
         /**
          * Returns a IFIDPacket with the values specified.
@@ -597,7 +572,7 @@ public:
          * @param request_id: interface number of src (neighboring router).
          */
         this->request_id = request_id;
-        SCIONAddr dst(dst_isd_ad.first, dst_isd_ad.second,
+        SCIONAddr dst(dst_isd_ad.isd, dst_isd_ad.ad,
                       &PacketType::IFID_PKT);
         hdr = SCIONHeader(src, dst, PathBase(), std::vector<ExtensionHeader>());
         payload = "";
@@ -607,7 +582,7 @@ public:
         payload.push_back(request_id & 0xFF);
     }
 
-    BitArray pack() {
+    std::string pack() {
         payload = "";
         payload.push_back(reply_id >> 8);
         payload.push_back(reply_id & 0xFF);
@@ -994,7 +969,7 @@ IPv4Address get_type(SCIONPacket pkt) {
         if (*it == dst_addr) 
             return dst_addr;
     }
-    return IPv4Address("0.0.0.0");
+    return PacketType::DATA;
 }
 
 #endif // SCION_CPP
