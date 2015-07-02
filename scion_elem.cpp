@@ -65,8 +65,8 @@ public:
     int local_socket;
     std::vector<int> sockets;
 
-    SCIONElement(std::string server_type, std::string topo_file, 
-                 std::string config_file, std::string server_id) {
+    SCIONElement(const std::string &server_type, const std::string &topo_file, 
+                 const std::string &config_file, const std::string &server_id) {
         /**
          * Create a new ServerBase instance.
          * :param server_type: a shorthand of the server type, e.g. "bs" for a
@@ -89,20 +89,10 @@ public:
         IPAddress host_addr;
         parse_topology(topo_file);
         if (server_id.length()) {
-            if (server_type == "er") {
-                RouterElement own_config = 
-                            topology.get_own_config_edge_router(server_id);
-                id = server_type + std::to_string(topology.isd_id) + "-" 
+            ServerElement own_config = topology.get_own_config(server_type, server_id);
+            id = server_type + std::to_string(topology.isd_id) + "-" 
                      + std::to_string(topology.ad_id) + "-" + own_config.name;
-                host_addr = *(own_config.addr);
-            }
-            else {
-                ServerElement own_config = topology.get_own_config(server_type, 
-                                                                    server_id);
-                id = server_type + std::to_string(topology.isd_id) + "-" 
-                     + std::to_string(topology.ad_id) + "-" + own_config.name;
-                host_addr = *(own_config.addr);
-            }
+            host_addr = *(own_config.addr);
         }
         else{
             id = server_type;
@@ -130,23 +120,7 @@ public:
                   << ":" << SCION_UDP_PORT;
     }
 
-    SCIONAddr get_addr() {
-        /* The address of the server as a :class:`lib.packet.scion_addr.SCIONAddr`
-         * object.
-         */
-        return addr;
-    }
-
-    void set_addr(SCIONAddr addr){
-        /* Set the address of the server.
-         * :param addr: the new server address.
-         * :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
-         */
-        ///? should assert(addr != NULL)??
-        this->addr = addr;
-    }
-
-    void parse_topology(std::string topo_file) {
+    void parse_topology(const std::string &topo_file) {
         /* Instantiate a Topology object given 'topo_file'.
          * 
          * :param topo_file: the topology file name.
@@ -155,7 +129,7 @@ public:
         topology = Topology(topo_file);
     }
 
-    void parse_config(std::string config_file) {
+    void parse_config(const std::string &config_file) {
         /* Instantiate a Config object given 'config_file'.
          * 
          * :param config_file: the configuration file name.
@@ -211,11 +185,11 @@ public:
          * :param dst_port: the destination port number.
          * :type dst_port: int
          */
-        std::string buf = packet.pack().to_string();
+        std::string buf = packet.pack();
         struct sockaddr_in dest;
         dest.sin_family = AF_INET;
         inet_pton(AF_INET, dst.c_str(), &dest.sin_addr.s_addr);
-        dest.sin_port = htons(SCION_UDP_PORT);
+        dest.sin_port = htons(dst_port);
 
         sendto(local_socket, buf.c_str(), buf.length(), 0, 
                (struct sockaddr *)&dest, sizeof(struct sockaddr_in));

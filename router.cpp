@@ -23,7 +23,7 @@
 
 INITIALIZE_EASYLOGGINGPP
 
-#define IFID_PKT_TOUT 0.5
+#define IFID_PKT_TOUT 1
 
 class NextHop;
 typedef void (*HandlerFunction)(SCIONPacket, NextHop);
@@ -156,7 +156,7 @@ public:
         if (use_local_socket)
             SCIONElement::send(packet, next_hop.addr, next_hop.port);
         else {
-            std::string buf = packet.pack().to_string();
+            std::string buf = packet.pack();
             struct sockaddr_in dest;
             dest.sin_family = AF_INET;
             inet_pton(AF_INET, next_hop.addr.c_str(), &dest.sin_addr.s_addr);
@@ -207,8 +207,7 @@ public:
         next_hop.addr = interface.to_addr->to_string();
         next_hop.port = interface.to_udp_port;
         SCIONAddr src(topology.isd_id, topology.ad_id, interface.addr);
-        std::pair<uint16_t, uint64_t> dst_isd_ad(interface.neighbor_isd,
-                                                 interface.neighbor_ad);
+        ISD_AD dst_isd_ad(interface.neighbor_isd, interface.neighbor_ad);
         IFIDPacket ifid_req(src, dst_isd_ad, interface.if_id);
         while (true) {
             send(ifid_req, next_hop, false);
@@ -251,8 +250,9 @@ public:
          * :type from_bs: bool
          */
         PathConstructionBeacon beacon(packet);
+        LOG(INFO) << "PCB:" << beacon.to_string();
         if (from_bs) {
-            if (interface.if_id != beacon.pcb.trcf.if_id) {
+            if (interface.if_id != beacon.pcb.if_id) {
                 LOG(ERROR) << "Wrong interface set by BS.";
                 return;
             }
@@ -262,7 +262,7 @@ public:
         }
         else {
             // TODO Multiple BS scenario
-            beacon.pcb.trcf.if_id = interface.if_id;
+            beacon.pcb.if_id = interface.if_id;
             next_hop.addr = topology.beacon_servers[0].addr->to_string();
             send(beacon, next_hop);
         }
