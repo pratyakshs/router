@@ -28,6 +28,7 @@
 
 #define MAX_SEGMENT_TTL 86400 // 26 * 60 * 60
 #define EXP_TIME_UNIT 337.5 // MAX_SEGMENT_TTL / 2 ** 8
+#define REV_TOKEN_LEN 32
 
 class Marking {
     /**
@@ -50,7 +51,7 @@ public:
          */
      }
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Returns object as a binary string.
          */
@@ -79,22 +80,20 @@ class PCBMarking : public Marking {
      * included in the HOF.
      */
 public:
-    uint64_t ad_id;
-    SupportSignatureField ssf;
+	uint16_t isd_id:12;
+    uint32_t ad_id:20;
     HopOpaqueField hof;
-    SupportPCBField spcbf;
     std::string ig_rev_token;
-    std::string eg_rev_token;
-    static const int LEN = 32 + 2 * 32;
+    static const int LEN = 12 + REV_TOKEN_LEN;
 
     PCBMarking() {
         PCBMarking("");
     }
 
     PCBMarking(const std::string &raw) : Marking() {
+    	isd_id = 0;
         ad_id = 0;
-        ig_rev_token = std::string(32, 0);
-        eg_rev_token = std::string(32, 0);
+        ig_rev_token = std::string(REV_TOKEN_LEN, 0);
         if (raw.length()) 
             parse(raw);
     }
@@ -109,177 +108,71 @@ public:
             LOG(WARNING) << "PCBM: Data too short for parsing, len: " << dlen;
             return;
         }
-        BitArray bits(raw.substr(0, 8));
-        ad_id = bits.get_subarray(0, 64);
-        ssf = SupportSignatureField(raw.substr(8, 8));
-        hof = HopOpaqueField(raw.substr(16, 8));
-        spcbf = SupportPCBField(raw.substr(24, 8));
-        ig_rev_token = raw.substr(32, 32);
-        eg_rev_token = raw.substr(64, 32);
+        ISD_AD isd_ad(raw.substr(0, ISD_AD::LEN));
+        isd_id = isd_ad.isd;
+        ad_id = isd_ad.ad;
+        int offset = ISD_AD::LEN;
+        hof = HopOpaqueField(raw.substr(offset, HopOpaqueField::LEN));
+        offset += HopOpaqueField::LEN;
+        ig_rev_token = raw.substr(offset, REV_TOKEN_LEN);
         parsed = true;
     }
 
-    PCBMarking(int ad_id, SupportSignatureField ssf, HopOpaqueField hof, 
-               SupportPCBField spcbf, std::string ig_rev_token, 
-               std::string eg_rev_token) : Marking() {
+    PCBMarking(int16_t isd_id, int32_t ad_id, HopOpaqueField hof, 
+    	std::string ig_rev_token=std::string(REV_TOKEN_LEN, 0)) : Marking() {
         /**
          * Returns PCBMarking with fields populated from values.
          * 
          * :param ad_id: Autonomous Domain's ID.
-         * :param ssf: SupportSignatureField object.
          * :param hof: HopOpaqueField object.
-         * :param spcbf: SupportPCBField object.
          * :param ig_rev_token: Revocation token for the ingress if
          *                      in the HopOpaqueField.
-         * :param eg_rev_token: Revocation token for the egress if
-         *                      in the HopOpaqueField.
          */
+        this->isd_id = isd_id;
         this->ad_id = ad_id;
-        this->ssf = ssf;
         this->hof = hof;
-        this->spcbf = spcbf;
         this->ig_rev_token = ig_rev_token;
-        this->eg_rev_token = eg_rev_token;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Returns PCBMarking as a binary string.
          */
-        BitArray res;
-        res.append(ad_id, 64);
-        res += ssf.pack() + hof.pack() + spcbf.pack();
-        res += BitArray(ig_rev_token) + BitArray(eg_rev_token);
-        return res;
+        return ISD_AD(isd_id, ad_id).pack() + hof.pack() + ig_rev_token;
     }
 
     std::string to_string() {
-        std::string pcbm_str = "[PCB Marking ad_id: " + std::to_string(ad_id) 
-                                                      + "]\n";
-        pcbm_str += "ig_rev_token: " + ig_rev_token + "\neg_rev_token:" 
-                                     + eg_rev_token + "\n";
-        pcbm_str += ssf.to_string();
+        std::string pcbm_str = "[PCB Marking isd,ad (" + std::to_string(isd_id) 
+                               + ", " + std::to_string(ad_id) + ")]\n";
+        pcbm_str += "ig_rev_token: " + ig_rev_token + "\n";
         pcbm_str += hof.to_string() + "\n";
-        pcbm_str += spcbf.to_string();
         return pcbm_str;
     }
 
     bool operator==(const PCBMarking &other) const {
-        return (ad_id == other.ad_id &&
-                ssf == other.ssf &&
+        return (isd_id == other.isd_id && 
+                ad_id == other.ad_id &&
                 hof == other.hof &&
-                spcbf == other.spcbf &&
-                ig_rev_token == other.ig_rev_token &&
-                eg_rev_token == other.eg_rev_token);
+                ig_rev_token == other.ig_rev_token);
     }
 };
 
-
-class PeerMarking : public Marking {
-    /**
-     * Packs all fields for a specific peer marking.
-     */
-public:
-    static const int LEN = 24 + 2 * 32;
-    uint64_t ad_id;
-    std::string ig_rev_token;
-    std::string eg_rev_token;
-    HopOpaqueField hof;
-    SupportPeerField spf;
-
-    PeerMarking() {
-        PeerMarking("");
-    }
-
-    PeerMarking(const std::string &raw) : Marking() {
-        ad_id = 0;
-        ig_rev_token = "";
-        eg_rev_token = "";
-        if (raw.length()) 
-            parse(raw);
-    }
-
-    void parse(const std::string &raw) {
-        /**
-         * Populates fields from a raw bytes block.
-         */
-        this->raw = raw;
-        int dlen = raw.length();
-        if (dlen < PeerMarking::LEN) {
-            LOG(WARNING) << "PM: Data too short for parsing, len: " << dlen; 
-            return;
-        }
-        BitArray bits(raw.substr(0, 8));
-        ad_id = bits.get_subarray(0, 64);
-        hof = HopOpaqueField(raw.substr(8, 8));
-        spf = SupportPeerField(raw.substr(16, 8));
-        ig_rev_token = raw.substr(24, 32);
-        eg_rev_token = raw.substr(56);
-        parsed = true;
-    }
-
-    PeerMarking(int ad_id, HopOpaqueField hof, SupportPeerField spf,
-                std::string ingress_hash, std::string egress_hash) : Marking() {
-        /**
-         * Returns PeerMarking with fields populated from values.
-         * 
-         * :param ad_id: Autonomous Domain's ID.
-         * :param hof: HopOpaqueField object.
-         * :param spf: SupportPeerField object.
-         * :param ig_rev_token: Revocation token for the ingress if
-         *                      in the HopOpaqueField.
-         * :param eg_rev_token: Revocation token for the egress if
-         *                      in the HopOpaqueField.
-         */
-        this->ad_id = ad_id;
-        this->hof = hof;
-        this->spf = spf;
-        if (ingress_hash.length() == 0) ig_rev_token = std::string(0, 32);
-        else ig_rev_token = ingress_hash;
-        if (egress_hash.length() == 0) eg_rev_token = std::string(0, 32);
-        else eg_rev_token = egress_hash;
-    }
-
-    BitArray pack() const {
-        /**
-         * Returns PeerMarking as a binary string.
-         */
-        BitArray res;
-        res.append(ad_id, 64);
-        res += hof.pack() + spf.pack();
-        res += BitArray(ig_rev_token) + BitArray(eg_rev_token);
-        return res;
-    }
-
-    std::string to_string() {
-        std::string pm_str = "[Peer Marking ad_id: " + std::to_string(ad_id) 
-                                                     + "]\n";
-        pm_str += "ig_rev_token: " + ig_rev_token + "\neg_rev_token:" 
-                                   + eg_rev_token + "\n";
-        pm_str += hof.to_string() + "\n";
-        pm_str += spf.to_string();
-        return pm_str;
-    }
-
-    bool operator==(const PeerMarking &other) const {
-        return (ad_id == other.ad_id &&
-                hof == other.hof &&
-                spf == other.spf &&
-                ig_rev_token == other.ig_rev_token &&
-                eg_rev_token == other.eg_rev_token);
-    }
-};
 
 class ADMarking : public Marking {
     /**
      * Packs all fields for a specific Autonomous Domain.
      */
  public:
+    static const int METADATA_LEN = 8;
     PCBMarking pcbm;
+    std::vector<PCBMarking> pms;
     std::string sig;
-    std::vector<PeerMarking> pms;
-
-    static const int LEN = PCBMarking::LEN;
+    std::string asd;
+    std::string eg_rev_token;
+    int cert_ver;
+    int sig_len;
+    int asd_len;
+    int block_len;
 
     ADMarking() {
         ADMarking("");
@@ -287,7 +180,13 @@ class ADMarking : public Marking {
 
     ADMarking(const std::string &raw) : Marking() {
         sig = "";
-        if (raw.length()) 
+        asd = "";
+        eg_rev_token = std::string(REV_TOKEN_LEN, 0);
+        cert_ver = 0;
+        sig_len = 0;
+        asd_len = 0;
+        block_len = 0;
+        if (raw.length())
             parse(raw);
     }
 
@@ -297,22 +196,24 @@ class ADMarking : public Marking {
          */
         this->raw = raw;
         int dlen = raw.length();
-        if (dlen < ADMarking::LEN) {
+        if (dlen < PCBMarking::LEN + METADATA_LEN + REV_TOKEN_LEN) {
             LOG(WARNING) << "AD: Data too short for parsing, len: " << dlen; 
             return;
         }
-        pcbm = PCBMarking(raw.substr(0, PCBMarking::LEN));
-        std::string raw_ = raw.substr(PCBMarking::LEN);
-        while (raw_.length() > pcbm.ssf.sig_len) {
-            pms.push_back(PeerMarking(raw_.substr(0, PeerMarking::LEN)));
-            raw_ = raw_.substr(PeerMarking::LEN);
-        }
-        sig = raw_;
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
+        // pcbm = PCBMarking(raw.substr(0, PCBMarking::LEN));
+        // std::string raw_ = raw.substr(PCBMarking::LEN);
+        // while (raw_.length() > pcbm.ssf.sig_len) {
+        //     pms.push_back(PeerMarking(raw_.substr(0, PeerMarking::LEN)));
+        //     raw_ = raw_.substr(PeerMarking::LEN);
+        // }
+        // sig = raw_;
         parsed = true;
     }
 
-    ADMarking(PCBMarking &pcbm, std::vector<PeerMarking> &pms, 
-              std::string &sig) : Marking() {
+    ADMarking(PCBMarking &pcbm, std::vector<PCBMarking> &pms,
+              const std::string &eg_rev_token=std::string(REV_TOKEN_LEN, 0),
+              const std::string &sig="", const std::string &asd="") : Marking() {
         /**
          * Returns ADMarking with fields populated from values.
          * 
@@ -320,21 +221,25 @@ class ADMarking : public Marking {
          * @param pms: List of PeerMarking objects.
          * @param sig: Beacon's signature.
          */
-        pcbm.ssf.sig_len = sig.length();
-        pcbm.ssf.block_size = PCBMarking::LEN + PeerMarking::LEN * pms.size();
         this->pcbm = pcbm;
         this->pms = pms;
+        this->block_len = (1 + pms.size()) * PCBMarking::LEN;
         this->sig = sig;
+        this->sig_len = sig.length();
+        this->asd = asd;
+        this->asd_len = asd.length();
+        this->eg_rev_token = eg_rev_token;
     };
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Returns ADMarking as a binary string.
          */
-        BitArray res = pcbm.pack();
-        for (int i = 0; i < pms.size(); i++) 
-            res += pms[i].pack();
-        res += BitArray(sig);
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
+        std::string res = pcbm.pack();
+        // for (int i = 0; i < pms.size(); i++) 
+        //     res += pms[i].pack();
+        //     res += BitArray(sig);
         return res;
     }
 
@@ -343,24 +248,35 @@ class ADMarking : public Marking {
          * Removes the signature from the AD block.
          */
         sig = "";
-        pcbm.ssf.sig_len = 0;
+        sig_len = 0;
+    }
+
+    void remove_asd() {
+        /**
+         * Removes the Additional Signed Data (ASD) from the AD block.
+         * Note that after ASD is removed, a corresponding signature is invalid.
+         */
+        asd = "";
+        asd_len = 0;
     }
 
     std::string to_string() {
         std::string ad_str = "[Autonomous Domain]\n";
-        ad_str += pcbm.to_string();
-        for (int i = 0; i < pms.size(); i++)
-            ad_str += pms[i].to_string();
-        std::string encoded = base64_encode(
-            reinterpret_cast<const unsigned char*>(sig.c_str()), sig.length());
-        ///? decode to utf-8 required?
-        ad_str += "[Signature: " + encoded + "]\n";
+        // ad_str += pcbm.to_string();
+        // for (int i = 0; i < pms.size(); i++)
+        //     ad_str += pms[i].to_string();
+        // std::string encoded = base64_encode(
+        //     reinterpret_cast<const unsigned char*>(sig.c_str()), sig.length());
+        // ///? decode to utf-8 required?
+        // ad_str += "[Signature: " + encoded + "]\n";
         return ad_str;
     }
 
     bool operator==(const ADMarking &other) const {
         return (pcbm == other.pcbm &&
                 pms == other.pms &&
+                asd == other.asd &&
+                eg_rev_token == other.eg_rev_token &&
                 sig == other.sig);
     }
 };
@@ -372,20 +288,22 @@ class PathSegment : public Marking {
      */
  public:
     InfoOpaqueField iof;
-    TRCField trcf;
+    int trc_ver;
+    int if_id;
     std::string segment_id;
     std::vector<ADMarking> ads;
     uint32_t min_exp_time;
-    uint32_t size;
-    static const int LEN = 16 + 32;
+    static const int MIN_LEN = 14 + REV_TOKEN_LEN;
 
     PathSegment() {
         PathSegment("");
     }
 
     PathSegment(const std::string &raw) : Marking() {
-        segment_id = std::string(0, 32);
-        min_exp_time = (1 << 8 ) - 1;
+        trc_ver = 0;
+        if_id = 0;
+        segment_id = std::string(REV_TOKEN_LEN, 0);
+        min_exp_time = (1 << 8) - 1;        
         if (raw.length()) 
             parse(raw);
     }
@@ -395,35 +313,47 @@ class PathSegment : public Marking {
         * Populates fields from a raw bytes block.
          */        
         this->raw = raw;
-        size = raw.length();
         int dlen = raw.length();
-        if (dlen < PathSegment::LEN) {
+        if (dlen < PathSegment::MIN_LEN) {
             LOG(WARNING) << "PathSegment: Data too short for parsing, len: "
                          << dlen;
             return;
         }
         // Populate the info and ROT OFs from the first and second 8-byte blocks
         // of the segment, respectively.
-        iof = InfoOpaqueField(raw.substr(0, 8));
-        trcf = TRCField(raw.substr(8, 8));
-        segment_id = raw.substr(16, 32);
-        std::string raw_ = raw.substr(48);
+        iof = InfoOpaqueField(raw.substr(0, InfoOpaqueField::LEN));
+        int offset = InfoOpaqueField::LEN;
+        BitArray bits(raw.substr(offset, 6));
+        trc_ver = bits.get_subarray(0, 32);
+        if_id = bits.get_subarray(32, 16);
+        offset += 6;
+        segment_id = raw.substr(offset, REV_TOKEN_LEN);
+        offset += REV_TOKEN_LEN;
+        std::string raw_ = raw.substr(offset);
         for (int i = 0; i < iof.hops; i++) {
-            PCBMarking pcbm(raw_.substr(0, PCBMarking::LEN));
-            ADMarking ad_marking(raw_.substr(0, 
-                                 pcbm.ssf.sig_len + pcbm.ssf.block_size));
+            BitArray bits(raw_.substr(0, ADMarking::METADATA_LEN));
+            int asd_len = bits.get_subarray(16, 16);
+            int sig_len = bits.get_subarray(32, 16);
+            int block_len = bits.get_subarray(48, 16);
+            int ad_len = sig_len + asd_len + block_len + ADMarking::METADATA_LEN 
+                        + REV_TOKEN_LEN;
+            ADMarking ad_marking = ADMarking(raw_.substr(0, ad_len));
             add_ad(ad_marking);
-            raw_ = raw_.substr(pcbm.ssf.sig_len + pcbm.ssf.block_size);
+            raw_ = raw_.substr(ad_len);
         }
         parsed = true;
     }
 
-    BitArray pack() const {
+    std::string pack() const {
         /**
          * Returns PathSegment as a binary string.
          */
-        BitArray res = iof.pack() + trcf.pack();
-        res += BitArray(segment_id);
+        std::string res = iof.pack();
+        BitArray bits;
+        bits.append(trc_ver, 32);
+        bits.append(if_id, 16);
+        res += bits.to_string();
+        res += segment_id;
         for (int i = 0; i < ads.size(); i++) 
             res += ads[i].pack();
         return res;
@@ -474,6 +404,17 @@ class PathSegment : public Marking {
          * Returns the ISD ID.
          */ 
         return iof.isd_id;
+    }
+
+    ADMarking get_last_adm() {
+        /**
+         * Returns the last ADMarking on the path.
+         */
+        if (ads.size())
+            return ads[ads.size()-1];
+        else
+            return ADMarking();
+            ///? should return a null pointer?
     }
 
     PCBMarking get_last_pcbm() {
@@ -576,10 +517,9 @@ class PathSegment : public Marking {
         std::vector<std::string> tokens;
         for (int i = 0; i < ads.size(); i++) {
             tokens.push_back(ads[i].pcbm.ig_rev_token);
-            tokens.push_back(ads[i].pcbm.eg_rev_token);
+            tokens.push_back(ads[i].eg_rev_token);
             for (int j = 0; j < ads[i].pms.size(); i++) {
                 tokens.push_back(ads[i].pms[j].ig_rev_token);
-                tokens.push_back(ads[i].pms[j].eg_rev_token);
             }
         }
         return tokens;
@@ -589,27 +529,28 @@ class PathSegment : public Marking {
         /**
          * Deserializes a bytes string into a list of PathSegments.
          */
-        int dlen = raw.length();
-        if (dlen < PathSegment::LEN) {
-            LOG(WARNING) << "HPB: Data too short for parsing, len: " << dlen; 
-            return std::vector<PathSegment>();
-        }
+        // int dlen = raw.length();
+        // if (dlen < PathSegment::LEN) {
+        //     LOG(WARNING) << "HPB: Data too short for parsing, len: " << dlen; 
+        //     return std::vector<PathSegment>();
+        // }
         std::vector<PathSegment> pcbs;
-        while (raw.length() > 0) {
-            PathSegment pcb;
-            pcb.iof = InfoOpaqueField(raw.substr(0, 8));
-            pcb.trcf = TRCField(raw.substr(8, 8));
-            pcb.segment_id = raw.substr(16, 32);
-            raw = raw.substr(48);
-            for (int i = 0; i < pcb.iof.hops; i++) {
-                PCBMarking pcbm(raw.substr(0, PCBMarking::LEN));
-                ADMarking ad_marking(raw.substr(0, pcbm.ssf.sig_len +
-                                           pcbm.ssf.block_size));
-                pcb.add_ad(ad_marking);
-                raw = raw.substr(pcbm.ssf.sig_len + pcbm.ssf.block_size);
-            }
-            pcbs.push_back(pcb);
-        }
+        // while (raw.length() > 0) {
+        //     PathSegment pcb;
+        //     pcb.iof = InfoOpaqueField(raw.substr(0, 8));
+        //     pcb.trcf = TRCField(raw.substr(8, 8));
+        //     pcb.segment_id = raw.substr(16, 32);
+        //     raw = raw.substr(48);
+        //     for (int i = 0; i < pcb.iof.hops; i++) {
+        //         PCBMarking pcbm(raw.substr(0, PCBMarking::LEN));
+        //         ADMarking ad_marking(raw.substr(0, pcbm.ssf.sig_len +
+        //                                    pcbm.ssf.block_size));
+        //         pcb.add_ad(ad_marking);
+        //         raw = raw.substr(pcbm.ssf.sig_len + pcbm.ssf.block_size);
+        //     }
+        //     pcbs.push_back(pcb);
+        // }
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
         return pcbs;
     }
 
@@ -619,22 +560,23 @@ class PathSegment : public Marking {
          */
         std::string pcbs_list;
         for (int i = 0; i < pcbs.size(); i++) 
-            pcbs_list += pcbs[i].pack().to_string();
+            pcbs_list += pcbs[i].pack();
         return pcbs_list;
     }
 
     std::string to_string() {
         std::string pcb_str = "[PathSegment]\n";
-        pcb_str += "Segment ID: " + segment_id + "\n";
-        pcb_str += iof.to_string() + "\n" + trcf.to_string() + "\n";
-        for (int i = 0; i < ads.size(); i++) 
-            pcb_str += ads[i].to_string();
+        // pcb_str += "Segment ID: " + segment_id + "\n";
+        // pcb_str += iof.to_string() + "\n" + trcf.to_string() + "\n";
+        // for (int i = 0; i < ads.size(); i++) 
+        //     pcb_str += ads[i].to_string();
+        std::cerr << "***UNIMPLEMENTED***" << std::endl;
         return pcb_str;
     }
 
     bool operator==(const PathSegment &other) const {
         return (iof == other.iof &&
-                trcf == other.trcf &&
+                trc_ver == other.trc_ver &&
                 ads == other.ads);
     }
 };
@@ -655,8 +597,8 @@ public:
         pcb = PathSegment(payload);
     }
 
-    PathConstructionBeacon(std::pair<uint16_t, uint64_t> src_isd_ad, 
-                        SCIONAddr &dst, PathSegment &pcb) : SCIONPacket() {
+    PathConstructionBeacon(ISD_AD src_isd_ad, SCIONAddr &dst, 
+        PathSegment &pcb) : SCIONPacket() {
         /**
          * Returns a PathConstructionBeacon packet with the values specified.
          * 
@@ -666,12 +608,12 @@ public:
          *             class)
          */
         this->pcb = pcb;
-        SCIONAddr src(src_isd_ad.first, src_isd_ad.second, &PacketType::BEACON);
+        SCIONAddr src(src_isd_ad.isd, src_isd_ad.ad, &PacketType::BEACON);
         hdr = SCIONHeader(src, dst);
     }
 
-    BitArray pack() {
-        payload = pcb.pack().to_string();
+    std::string pack() {
+        payload = pcb.pack();
         return SCIONPacket::pack();
     }
 };
